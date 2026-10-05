@@ -87,10 +87,12 @@ const monthLabel = (m) => {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ================================================================ constants
-const W = 1080, H = 1920, BPM = 120, BEAT = 60 / BPM, DUR = 27;
+const W = 1080, H = 1920, BPM = 120, BEAT = 60 / BPM, DUR = 30;
+// the @datamotionhq look: deep navy, coral price lines, the brand yellow, and a few series colours
 const C = {
-  ink: '#0A0A0B', ink2: '#151517', ink3: '#1E1E21', graphite: '#5E5B57', ash: '#9C978F',
-  bone: '#EEE9DF', signal: '#FF4D12', ember: '#FF8A3D', blood: '#C21D0B',
+  ink: '#0C1117', ink2: '#141B23', ink3: '#1E2731', graphite: '#4B5763', ash: '#8B96A1',
+  bone: '#F1F3F5', signal: '#FF6B6B', ember: '#FF9C8F', blood: '#D9434B',
+  yellow: '#F5CF57', blue: '#7DA6FF', teal: '#5FD3B5', purple: '#A9A2FF', amber: '#F5A25D', magenta: '#D84CA8',
 };
 const rgba = (hex, a = 1) => {
   const n = parseInt(hex.slice(1), 16);
@@ -151,7 +153,7 @@ const EXPORT = new URLSearchParams(location.search).has('export');
 if (EXPORT) document.body.classList.add('export');
 const SCALE = EXPORT ? 1 : Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * innerHeight / H));
 cv.width = W * SCALE; cv.height = H * SCALE;
-const c = cv.getContext('2d', { willReadFrequently: EXPORT });
+const c = cv.getContext('2d');
 const glowCv = document.createElement('canvas');
 glowCv.width = cv.width >> 1; glowCv.height = cv.height >> 1;
 const g = glowCv.getContext('2d');
@@ -194,7 +196,7 @@ function sparkParticles(t, headAt, { rate = 70, life = .5, speed = 260, grav = 5
     const [x0, y0] = at(Math.max(0, age - .022)), [x1, y1] = at(age);
     const k = 1 - age / lf;
     both((x) => {
-      x.strokeStyle = k > .6 ? rgba('#FFE2C4', k * I) : rgba(C.ember, Math.min(1, k * 1.4) * I);
+      x.strokeStyle = k > .6 ? rgba('#FFE1DC', k * I) : rgba(C.ember, Math.min(1, k * 1.4) * I);
       x.lineWidth = w * (.5 + k * .7);
       x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke();
     });
@@ -214,7 +216,7 @@ function burst(t, t0, x, y, { n = 40, speed = 900, life = .7, seed = 5, grav = 9
     const [x0, y0] = pos(Math.max(0, age - .03)), [x1, y1] = pos(age);
     const k = 1 - age / lf;
     both((ctx) => {
-      ctx.strokeStyle = k > .55 ? rgba('#FFE9D2', k) : rgba(C.ember, k * 1.3);
+      ctx.strokeStyle = k > .55 ? rgba('#FFF0C8', k) : rgba(C.ember, k * 1.3);
       ctx.lineWidth = w * (.4 + .8 * k);
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     });
@@ -226,12 +228,12 @@ function sparkHead(x, y, t, scale = 1, I = 1) {
     const r = (glow ? 46 : 26) * scale;
     const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
     gr.addColorStop(0, `rgba(255,250,240,${I * flick})`);
-    gr.addColorStop(.18, `rgba(255,170,90,${.95 * I * flick})`);
+    gr.addColorStop(.18, `rgba(255,160,150,${.95 * I * flick})`);
     gr.addColorStop(.45, rgba(C.signal, .45 * I));
     gr.addColorStop(1, rgba(C.signal, 0));
     ctx.fillStyle = gr;
     ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-    ctx.strokeStyle = `rgba(255,190,120,${.8 * I})`;
+    ctx.strokeStyle = `rgba(255,200,190,${.8 * I})`;
     ctx.lineWidth = 1.6 * scale;
     for (let i = 0; i < 4; i++) {
       const a = i * TAU / 4 + t * 3 + .4, rr = (13 + 8 * hash(frameIdx(t), i)) * scale;
@@ -269,11 +271,11 @@ const CX0 = 150, CX1 = 860, CY1 = 720, CY0 = 1440;
 const xOf = (m) => CX0 + m / M_END * (CX1 - CX0);
 const yOf = (v, ym) => CY0 - v / ym * (CY0 - CY1);
 const EVENTS = [
-  { name: 'DOT-COM', m0: 2, m1: 33, row: 0 },
-  { name: 'FINANCIAL CRISIS', m0: 95, m1: 113, row: 1 },
-  { name: 'EURO DEBT', m0: 123, m1: 150, row: 0 },
-  { name: 'COVID-19', m0: 241, m1: 251, row: 0 },
-  { name: 'INFLATION', m0: 264, m1: 281, row: 1 },
+  { name: 'DOT-COM', m0: 2, m1: 33, row: 0, col: 'purple' },
+  { name: 'FINANCIAL CRISIS', m0: 95, m1: 113, row: 1, col: 'amber' },
+  { name: 'EURO DEBT', m0: 123, m1: 150, row: 0, col: 'amber' },
+  { name: 'COVID-19', m0: 241, m1: 251, row: 0, col: 'teal' },
+  { name: 'INFLATION', m0: 264, m1: 281, row: 1, col: 'yellow' },
   { name: 'AI BOOM', m0: 276, m1: M_END, row: 2, hot: true },
 ];
 // first month the price closes above each milestone, and the time the spark gets there
@@ -352,7 +354,7 @@ function header(t, a, m) {
   both((ctx, glow) => {
     ctx.font = ARCH(900, px); ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = k;
-    ctx.fillStyle = glow ? rgba(C.signal, .55 + .5 * kick) : C.signal;
+    ctx.fillStyle = glow ? rgba(C.signal, .32 + .5 * kick) : C.signal;
     let xx = x;
     for (const ch of txt) {
       const w = /[0-9]/.test(ch) ? cell : ctx.measureText(ch).width;
@@ -397,7 +399,7 @@ function chart(t, a, m, ym) {
     c.fillStyle = e.hot ? C.signal : rgba(C.ink2, .92);
     c.fillRect(0, -26, lw, 36);
     c.strokeStyle = rgba(e.hot ? C.signal : C.bone, .45); c.strokeRect(0, -26, lw, 36);
-    c.fillStyle = e.hot ? C.ink : C.bone; c.globalAlpha = a * st;
+    c.fillStyle = e.hot ? C.ink : C[e.col]; c.globalAlpha = a * st;
     c.fillText(e.name, 9, -1);
     c.letterSpacing = '0px';
     c.restore();
@@ -498,7 +500,7 @@ function milestoneChips(t, a) {
     const s = 1 + .35 * (1 - k);
     c.save(); c.translate(x + 142, y + 46); c.scale(s, s); c.translate(-x - 142, -y - 46);
     const hot = pulse(t, ms.t, .35);
-    c.fillStyle = hot > .05 ? rgba(C.signal, .25 + .75 * hot) : rgba(C.ink2, 1);
+    c.fillStyle = hot > .05 ? rgba(C.yellow, .25 + .75 * hot) : rgba(C.ink2, 1);
     c.fillRect(x, y, 285, 92);
     c.font = ARCH(900, 42); c.fillStyle = hot > .5 ? C.ink : C.bone;
     c.fillText(`$${ms.v}`, x + 18, y + 50);
@@ -511,79 +513,90 @@ function milestoneChips(t, a) {
 // ================================================================ act 03 — the payoff (16.5–20 s)
 function act3(t) {
   const v = P[M_END];
-  // $238.9 slams in on the downbeat at 17.0
-  const s1 = prog(t, 17.0, 17.3, ease.outExpo);
   const exit = prog(t, 19.5, 20.0, ease.inExpo);
+  // the "current value" card slams in on the 17.0 downbeat
+  const s1 = prog(t, 17.0, 17.3, ease.outExpo);
   if (t >= 17.0) {
-    const s = (1 + .6 * (1 - s1)) * (1 - exit);
-    both((ctx, glow) => {
-      ctx.save(); ctx.translate(W / 2, 860); ctx.scale(s, s);
-      ctx.font = ARCH(900, 250, 'semi-condensed'); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = glow ? rgba(C.signal, .9) : C.signal;
-      ctx.fillText(fmtUSD(v), 0, 85);
-      ctx.restore(); ctx.textAlign = 'left';
-    });
-    mono('PER SHARE · OCT 2026', W / 2, 1015 + (1 - prog(t, 17.25, 17.5, ease.outExpo)) * 30, { px: 26, col: C.bone, a: prog(t, 17.25, 17.5) * (1 - exit), align: 'center', ls: 4 });
+    const s = (1 + .45 * (1 - s1)) * (1 - exit);
+    c.save(); c.translate(W / 2, 820); c.scale(s, s); c.rotate((1 - s1) * -.04);
+    roundRect(c, -450, -230, 900, 430, 36);
+    c.fillStyle = C.yellow; c.fill();
+    c.textAlign = 'center'; c.fillStyle = C.ink;
+    c.font = ARCH(600, 40); c.fillText('Current value', 0, -150);
+    c.font = ARCH(900, 230, 'semi-condensed'); c.fillText(fmtUSD(v), 0, 50);
+    c.font = ARCH(500, 32); c.fillText('USD / share · 2026-10', 0, 135);
+    c.textAlign = 'left';
+    c.restore();
   }
   // ×2,389 and the $1,000 line, one per beat
   const mult = v / P[0];
   const r1 = prog(t, 17.5, 17.8, ease.outExpo), r2 = prog(t, 18.0, 18.3, ease.outExpo), r3 = prog(t, 18.5, 18.8, ease.outExpo);
   c.globalAlpha = 1 - exit;
   if (r1 > 0) {
-    c.save(); c.translate(W / 2, 1210); c.scale(1 + .4 * (1 - r1), 1 + .4 * (1 - r1));
+    c.save(); c.translate(W / 2, 1250); c.scale(1 + .4 * (1 - r1), 1 + .4 * (1 - r1));
     c.font = ARCH(900, 150, 'expanded'); c.fillStyle = C.bone; c.textAlign = 'center';
-    // the multiplier counts up while it lands
     c.fillText('×' + fmtInt(mult * prog(t, 17.5, 18.4, ease.outExpo)), 0, 50);
     c.restore(); c.textAlign = 'left';
   }
-  if (r2 > 0) mono('SINCE JANUARY 2000', W / 2, 1325 + (1 - r2) * 30, { px: 26, col: C.ash, a: r2, align: 'center', ls: 4 });
+  if (r2 > 0) mono('SINCE JANUARY 2000', W / 2, 1360 + (1 - r2) * 30, { px: 26, col: C.ash, a: r2, align: 'center', ls: 4 });
   if (r3 > 0) {
     c.font = SERIF(66); c.textAlign = 'center'; c.fillStyle = rgba(C.bone, r3);
-    c.fillText('$1,000 then is', W / 2, 1440 + (1 - r3) * 30);
-    c.fillStyle = rgba(C.signal, r3);
-    c.font = SERIF(96, 500);
-    c.fillText('$' + (1000 * mult / 1e6).toFixed(2) + 'M', W / 2, 1550 + (1 - r3) * 40);
-    c.textAlign = 'left';
+    c.fillText('$1,000 then is', W / 2, 1480 + (1 - r3) * 30);
+    both((ctx, glow) => {
+      ctx.globalAlpha = (1 - exit) * r3; ctx.textAlign = 'center';
+      ctx.font = SERIF(100, 500); ctx.fillStyle = glow ? rgba(C.signal, .7) : C.signal;
+      ctx.fillText('$' + (1000 * mult / 1e6).toFixed(2) + 'M', W / 2, 1595 + (1 - r3) * 40);
+      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    });
   }
   c.globalAlpha = 1;
-  burst(t, 17.0, W / 2, 860, { n: 70, speed: 1400, seed: 21, life: .9 });
+  burst(t, 17.0, W / 2, 820, { n: 70, speed: 1500, seed: 21, life: .9 });
   // everything collapses into the spark, which rises to become the search caret
   if (t >= 19.5) {
     const k = prog(t, 19.5, 20.0, ease.inOutCubic);
-    sparkHead(W / 2, lerp(860, 760, k), t, 1.4 - .4 * k);
+    sparkHead(W / 2, lerp(820, 760, k), t, 1.4 - .4 * k);
   }
-  return { shake: pulse(t, 17.0, .07) * 30 + pulse(t, 17.5, .05) * 12, flash: pulse(t, 17.0, .04) * .55, zoom: 1 + .04 * pulse(t, 17.0, .15) };
+  return { shake: pulse(t, 17.0, .07) * 30 + pulse(t, 17.5, .05) * 12, flash: pulse(t, 17.0, .04) * .5, zoom: 1 + .04 * pulse(t, 17.0, .15) };
 }
 
-// ================================================================ act 04 — the search (20–27 s)
+// ================================================================ act 04 — the search and the profile (20–30 s)
 const HANDLE = 'datamotionhq';
 const QUERY = '@' + HANDLE;
 const T_TYPE = 21.0, T_KEY = .125; // one character per 16th
 const T_RES = T_TYPE + QUERY.length * T_KEY + .125; // results land on the 16th after the last key
-const T_TAP1 = 23.5, T_PROF = 24.0, T_TAP2 = 25.5, T_END = 26.0;
+const T_TAP1 = 23.5, T_PROF = 24.0, T_TAP2 = 26.5, T_END = 27.5;
 const BAR = { x: 80, y: 700, w: 920, h: 112 };
+const PROFILE = { name: 'Data Motion Hq', posts: 3, followers: 2, following: 0, bio: ['Making data worth watching.', 'Markets • Economics • History'] };
+
+// value noise for the thumbnails' wiggles
+const vnoise = (x, seed) => {
+  const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+  return lerp(hash(i, seed), hash(i + 1, seed), u) * 2 - 1;
+};
+
+/** The logo mark (a stand-in for the account's logo): a yellow peak with a data point, in unit coords. */
+function logoMark(ctx, cx, cy, r) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(r, r);
+  ctx.strokeStyle = C.yellow; ctx.lineWidth = .17; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(-.62, .45); ctx.lineTo(-.18, -.38); ctx.lineTo(.08, .12); ctx.lineTo(.38, -.22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(.02, .45); ctx.lineTo(.62, .45); ctx.stroke();
+  ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(.5, -.5, .13, 0, TAU); ctx.fill();
+  ctx.restore();
+}
 
 function avatar(cx, cy, r, t, ringK = 1) {
-  // the account's avatar: a tiny rising chart in a ring
+  // dark disc, the logo, and the warm story ring drawing itself around it
+  c.fillStyle = C.ink; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+  c.strokeStyle = rgba(C.bone, .08); c.lineWidth = 2; c.stroke();
+  logoMark(c, cx, cy + r * .02, r * .62);
   both((ctx, glow) => {
-    if (!glow) { ctx.fillStyle = C.ink2; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill(); }
     const gr = ctx.createLinearGradient(cx - r, cy + r, cx + r, cy - r);
-    gr.addColorStop(0, C.blood); gr.addColorStop(.5, C.signal); gr.addColorStop(1, C.ember);
-    ctx.strokeStyle = gr; ctx.lineWidth = Math.max(3, r * .09);
-    ctx.beginPath(); ctx.arc(cx, cy, r + r * .12, -Math.PI / 2, -Math.PI / 2 + TAU * ringK); ctx.stroke();
+    gr.addColorStop(0, C.yellow); gr.addColorStop(.45, C.signal); gr.addColorStop(1, C.magenta);
+    ctx.strokeStyle = gr; ctx.lineWidth = Math.max(3, r * (glow ? .1 : .075)); ctx.lineCap = 'round';
+    if (glow) ctx.globalAlpha *= .5;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 1.13, Math.PI * .75, Math.PI * .75 + TAU * ringK); ctx.stroke();
+    if (glow) ctx.globalAlpha *= 2;
   });
-  // the glyph: a few months of the curve itself
-  c.save(); c.beginPath(); c.arc(cx, cy, r * .98, 0, TAU); c.clip();
-  c.strokeStyle = C.signal; c.lineWidth = Math.max(2, r * .07); c.lineJoin = 'round';
-  c.beginPath();
-  for (let i = 0; i <= 40; i++) {
-    const m = 200 + i * (M_END - 200) / 40;
-    const x = cx - r * .62 + i / 40 * r * 1.24, y = cy + r * .45 - priceAt(m) / P[M_END] * r * .95;
-    i ? c.lineTo(x, y) : c.moveTo(x, y);
-  }
-  c.stroke();
-  c.fillStyle = C.bone; c.beginPath(); c.arc(cx + r * .62, cy + r * .45 - r * .95, r * .07, 0, TAU); c.fill();
-  c.restore();
 }
 
 function finger(x, y, t, tapAt, a = 1) {
@@ -596,33 +609,98 @@ function finger(x, y, t, tapAt, a = 1) {
   c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke();
   const rp = prog(t, tapAt, tapAt + .45, ease.outCubic);
   if (rp > 0 && rp < 1) {
-    c.strokeStyle = rgba(C.signal, 1 - rp); c.lineWidth = 3;
+    c.strokeStyle = rgba(C.yellow, 1 - rp); c.lineWidth = 3;
     c.beginPath(); c.arc(x, y, 46 + rp * 140, 0, TAU); c.stroke();
   }
+}
+
+/** A number that rolls from `a` to `b` (vertical slide) between t0 and t0 + dur. */
+function rollNum(a, b, x, y, t, t0, { px = 60, wght = 800, dur = .3, hot = C.yellow } = {}) {
+  const k = prog(t, t0, t0 + dur, ease.outExpo);
+  c.font = ARCH(wght, px);
+  c.save(); c.beginPath(); c.rect(x - 10, y - px * 1.0, px * 3, px * 1.25); c.clip();
+  if (k < 1) { c.fillStyle = rgba(C.bone, 1 - k); c.fillText(String(a), x, y - k * px); }
+  if (k > 0) { c.fillStyle = t - t0 < .5 ? hot : C.bone; c.fillText(String(b), x, y + (1 - k) * px); }
+  c.restore();
+}
+
+// the three posts on the grid, redrawn in their own style
+const POSTS = [
+  { title: ['Share price: NVIDIA.'], views: 11, card: 'Current value', lines: [{ col: 'signal', f: (u) => priceAt(u * M_END) / P[M_END] }], big: [['$238.9', 'signal']] },
+  { title: ['Consumer inflation across', '3 countries & regions.'], views: 43, card: 'Current spread', lines: [
+    { col: 'yellow', f: (u) => .35 + .12 * vnoise(u * 22, 1) + .4 * Math.exp(-(((u - .85) / .05) ** 2)) },
+    { col: 'blue', f: (u) => .3 + .12 * vnoise(u * 22, 2) + .3 * Math.exp(-(((u - .86) / .05) ** 2)) },
+    { col: 'signal', f: (u) => .28 + .1 * vnoise(u * 22, 3) + .35 * Math.exp(-(((u - .84) / .05) ** 2)) },
+  ], big: [['1.1', 'signal'], ['1.9', 'yellow'], ['1.8', 'blue']] },
+  { title: [], views: 142, card: 'Current spread', lines: [
+    { col: 'signal', f: (u) => .15 + .7 * u ** 1.4 + .06 * vnoise(u * 14, 4) },
+    { col: 'teal', f: (u) => .15 + .42 * u ** 1.6 + .05 * vnoise(u * 14, 5) },
+  ], big: [['201.1', 'signal'], ['152.7', 'teal']] },
+];
+
+function postTile(p, x, y, w, h, t, t0) {
+  const k = prog(t, t0, t0 + .35, ease.outBack);
+  if (k <= 0) return;
+  c.save(); c.translate(x + w / 2, y + h / 2); c.scale(k, k); c.translate(-w / 2, -h / 2);
+  c.beginPath(); c.rect(0, 0, w, h); c.clip();
+  const bg = c.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#16202A'); bg.addColorStop(1, '#0B1015');
+  c.fillStyle = bg; c.fillRect(0, 0, w, h);
+  let ty = 34;
+  c.font = ARCH(800, 19); c.fillStyle = C.bone;
+  for (const line of p.title) { c.fillText(line, 16, ty); ty += 24; }
+  // headline numbers in the series colours
+  c.font = ARCH(900, p.title.length ? 30 : 34);
+  let bx = 16;
+  for (const [txt, col] of p.big) { c.fillStyle = C[col]; c.fillText(txt, bx, ty + 26); bx += c.measureText(txt).width + 26; }
+  // the chart draws itself in
+  const ck = prog(t, t0 + .15, t0 + .9, ease.inOutCubic);
+  const cx0 = 22, cx1 = w - 22, cy0 = h - 92, cy1 = ty + 60;
+  c.strokeStyle = rgba(C.bone, .07); c.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const yy = lerp(cy0, cy1, i / 4); c.beginPath(); c.moveTo(cx0, yy); c.lineTo(cx1, yy); c.stroke(); }
+  for (const s of p.lines) {
+    c.strokeStyle = C[s.col]; c.lineWidth = 3; c.lineJoin = 'round';
+    c.beginPath();
+    const n = 90;
+    for (let i = 0; i <= n * ck; i++) { const u = i / n, px = lerp(cx0, cx1, u), py = lerp(cy0, cy1, clamp(s.f(u), 0, 1)); i ? c.lineTo(px, py) : c.moveTo(px, py); }
+    c.stroke();
+  }
+  // play badge
+  c.fillStyle = C.bone; roundRect(c, w - 58, 14, 42, 42, 10); c.fill();
+  c.fillStyle = C.ink; c.beginPath(); c.moveTo(w - 44, 25); c.lineTo(w - 44, 45); c.lineTo(w - 27, 35); c.closePath(); c.fill();
+  // yellow card peeking at the bottom
+  c.fillStyle = C.yellow; roundRect(c, w * .15, h - 44, w * .7, 70, 10); c.fill();
+  c.font = ARCH(600, 15); c.fillStyle = C.ink; c.textAlign = 'center'; c.fillText(p.card, w / 2, h - 22); c.textAlign = 'left';
+  // views, counting up
+  const vk = prog(t, t0 + .3, t0 + 1.2, ease.outCubic);
+  const ex = 30, ey = h - 72;
+  c.strokeStyle = C.bone; c.lineWidth = 3;
+  c.beginPath(); c.ellipse(ex, ey, 15, 9, 0, 0, TAU); c.stroke();
+  c.fillStyle = C.bone; c.beginPath(); c.arc(ex, ey, 4.5, 0, TAU); c.fill();
+  c.font = ARCH(700, 30); c.fillText(fmtInt(p.views * vk), ex + 26, ey + 11);
+  c.restore();
 }
 
 function act4(t) {
   const lt = t - 20;
   const toProf = prog(t, T_PROF, T_PROF + .5, ease.inOutExpo); // search screen → profile
-  const outro = prog(t, 26.5, 27.0, ease.inCubic);
+  const leave = prog(t, T_END - .3, T_END, ease.inExpo); // profile → end card
+  const outro = prog(t, 29.5, 30.0, ease.inCubic);
 
   // ---------------- the search screen
   if (toProf < 1) {
     const sA = 1 - toProf, sy = -toProf * 400;
     push((x) => { x.translate(0, sy); x.globalAlpha = sA; });
-    // headline, word per 8th
     const head = ['Want', 'more', 'charts', 'like', 'this?'];
     c.font = SERIF(88);
     let hx = 90;
     head.forEach((w, i) => {
       const at = 20.25 + i * .125, k = prog(t, at, at + .25, ease.outExpo);
-      c.fillStyle = rgba(i === 2 ? C.signal : C.bone, k);
+      c.fillStyle = rgba(i === 2 ? C.yellow : C.bone, k);
       c.fillText(w, hx, 560 + (1 - k) * 40);
       hx += c.measureText(w + ' ').width;
     });
     mono('INSTAGRAM  ·  SEARCH', 92, 420, { px: 22, col: C.ash, a: prog(t, 20, 20.3) });
 
-    // the bar grows out of the spark
     const grow = prog(t, 20.0, 20.5, ease.outExpo);
     const bw = BAR.w * grow, bx = W / 2 - bw / 2;
     roundRect(c, bx, BAR.y, bw, BAR.h, BAR.h / 2);
@@ -630,12 +708,10 @@ function act4(t) {
     const focus = t >= T_TYPE - .1;
     c.strokeStyle = focus ? rgba(C.signal, .9) : rgba(C.bone, .25); c.lineWidth = focus ? 2.5 : 1.5; c.stroke();
     if (grow > .9) {
-      // magnifier
       const mx = BAR.x + 62, my = BAR.y + BAR.h / 2;
       c.strokeStyle = rgba(C.bone, .8); c.lineWidth = 4;
       c.beginPath(); c.arc(mx - 4, my - 4, 17, 0, TAU); c.stroke();
       c.beginPath(); c.moveTo(mx + 9, my + 9); c.lineTo(mx + 22, my + 22); c.stroke();
-      // text
       const tx = BAR.x + 112, ty = BAR.y + BAR.h / 2 + 17;
       const nTyped = clamp(Math.floor((t - T_TYPE) / T_KEY) + 1, 0, QUERY.length);
       if (nTyped === 0) { c.font = ARCH(400, 46); c.fillStyle = rgba(C.ash, .7); c.fillText('Search', tx, ty); }
@@ -643,13 +719,12 @@ function act4(t) {
       let x = tx;
       for (let i = 0; i < nTyped; i++) {
         const ch = QUERY[i], at = T_TYPE + i * T_KEY, age = t - at;
-        const pop = 1 - spring(age, 4, .4);
-        c.save(); c.translate(x, ty - pop * 18);
+        const popY = 1 - spring(age, 4, .4);
+        c.save(); c.translate(x, ty - popY * 18);
         c.fillStyle = age < .12 ? C.signal : C.bone;
         c.fillText(ch, 0, 0); c.restore();
         x += c.measureText(ch).width;
       }
-      // caret: the spark's last trace. solid while typing, blinking when idle
       const typing = t >= T_TYPE && t < T_RES;
       const blink = typing || Math.floor(lt / (BEAT / 2)) % 2 === 0;
       if (blink) both((ctx, glow) => { ctx.fillStyle = glow ? rgba(C.signal, .8) : C.signal; ctx.fillRect(x + 4, ty - 42, 4, 54); });
@@ -657,9 +732,8 @@ function act4(t) {
       sparkHead(lerp(W / 2, BAR.x + 112, grow), BAR.y + BAR.h / 2, t, 1);
     }
 
-    // results
     const rows = [
-      { h: HANDLE, sub: 'Data Motion · charts that move', me: true },
+      { h: HANDLE, sub: PROFILE.name + ' · ' + PROFILE.bio[0], me: true },
       { h: '#datamotion', sub: 'Hashtag' },
       { h: '#dataviz', sub: 'Hashtag' },
       { h: '#stockmarket', sub: 'Hashtag' },
@@ -671,8 +745,8 @@ function act4(t) {
       c.globalAlpha = sA * k;
       const tap = r.me ? pulse(t, T_TAP1, .15) : 0;
       if (r.me) {
-        c.fillStyle = rgba(C.signal, .08 + .25 * tap); c.fillRect(60, y - 10, W - 120, 150);
-        c.fillStyle = C.signal; c.fillRect(60, y - 10, 6, 150);
+        c.fillStyle = rgba(C.yellow, .07 + .2 * tap); c.fillRect(60, y - 10, W - 120, 150);
+        c.fillStyle = C.yellow; c.fillRect(60, y - 10, 6, 150);
         avatar(170, y + 65, 52, t, prog(t, at, at + .5, ease.outCubic));
       } else {
         c.strokeStyle = rgba(C.bone, .3); c.lineWidth = 2;
@@ -681,101 +755,150 @@ function act4(t) {
       }
       c.font = ARCH(r.me ? 700 : 500, 44); c.fillStyle = r.me ? C.bone : rgba(C.bone, .7);
       c.fillText(r.h, 250, y + 58);
-      mono(r.sub, 252, y + 104, { px: 24, col: C.ash, ls: 0 });
+      mono(r.sub, 252, y + 104, { px: 22, col: C.ash, ls: 0 });
       c.globalAlpha = sA;
     });
-    // finger glides in and taps the account
     const fk = prog(t, T_TAP1 - .5, T_TAP1 - .05, ease.outCubic);
     if (fk > 0) finger(lerp(900, 640, fk), lerp(1700, 950, fk), t, T_TAP1, fk);
     pop();
   }
 
   // ---------------- the profile
-  if (toProf > 0) {
+  if (toProf > 0 && leave < 1) {
     const k = toProf;
-    push((x) => { x.translate(0, (1 - k) * 500); x.globalAlpha = k * (1 - outro); });
-    // avatar flies from the result row to the top of the profile
-    const ax = lerp(170, W / 2, k), ay = lerp(945, 560, k), ar = lerp(52, 150, k);
-    avatar(ax, ay, ar, t, 1);
-    const nameK = prog(t, T_PROF + .25, T_PROF + .55, ease.outExpo);
-    c.globalAlpha = nameK * (1 - outro);
-    c.font = ARCH(800, 72); c.textAlign = 'center'; c.fillStyle = C.bone;
-    c.fillText('Data Motion', W / 2, 820 + (1 - nameK) * 30);
-    mono('@' + HANDLE, W / 2, 880 + (1 - nameK) * 30, { px: 32, col: C.ash, align: 'center', ls: 1 });
-    c.font = SERIF(56); c.fillStyle = rgba(C.bone, .9); c.textAlign = 'center';
-    c.fillText('Data, in motion.', W / 2, 965 + (1 - nameK) * 30);
-    c.textAlign = 'left';
+    const ps = 1 - .08 * leave;
+    push((x) => { x.translate(W / 2, H / 2); x.scale(ps, ps); x.translate(-W / 2, -H / 2 + (1 - k) * 500); x.globalAlpha = k * (1 - leave); });
+    const A = c.globalAlpha;
+    const at = (d, dur = .3, fn = ease.outExpo) => prog(t, T_PROF + d, T_PROF + d + dur, fn);
 
-    // follow button: pressed on the beat, flips to Following
-    const bk = prog(t, T_PROF + .4, T_PROF + .7, ease.outExpo);
-    c.globalAlpha = bk * (1 - outro);
+    // top bar
+    const tb = at(.2);
+    c.globalAlpha = A * tb;
+    c.strokeStyle = C.bone; c.lineWidth = 5; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(70, 175); c.lineTo(114, 175); c.moveTo(92, 153); c.lineTo(92, 197); c.stroke();
+    for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(950, 160 + i * 16); c.lineTo(1000, 160 + i * 16); c.stroke(); }
+    c.font = ARCH(700, 54); c.textAlign = 'center'; c.fillStyle = C.bone;
+    c.fillText(HANDLE, W / 2 - 14, 193 + (1 - tb) * -20);
+    const hw = c.measureText(HANDLE).width;
+    c.lineWidth = 4; c.beginPath(); c.moveTo(W / 2 - 14 + hw / 2 + 16, 168); c.lineTo(W / 2 - 14 + hw / 2 + 27, 179); c.lineTo(W / 2 - 14 + hw / 2 + 38, 168); c.stroke();
+    c.textAlign = 'left';
+    c.strokeStyle = rgba(C.bone, .08); c.lineWidth = 1.5; c.beginPath(); c.moveTo(0, 250); c.lineTo(W * tb, 250); c.stroke();
+
+    // avatar flies from the result row into place, ring draws around it
+    c.globalAlpha = A;
+    const ax = lerp(170, 215, k), ay = lerp(945, 470, k), ar = lerp(52, 118, k);
+    avatar(ax, ay, ar, t, at(.15, .6, ease.inOutCubic));
+
+    // name and stats
+    const nk = at(.3);
+    c.globalAlpha = A * nk;
+    c.font = ARCH(700, 46); c.fillStyle = C.bone; c.fillText(PROFILE.name, 390 + (1 - nk) * 40, 400);
+    const stats = [[PROFILE.posts, 'posts'], [PROFILE.followers, 'followers'], [PROFILE.following, 'following']];
+    stats.forEach(([n, label], i) => {
+      const sk = at(.4 + i * .0625);
+      const sx = 390 + i * 215;
+      c.globalAlpha = A * sk;
+      if (i === 1) rollNum(Math.round(n * sk), t >= T_TAP2 ? n + 1 : Math.round(n * sk), sx, 495, t, t >= T_TAP2 ? T_TAP2 : 1e9);
+      else { c.font = ARCH(800, 60); c.fillStyle = C.bone; c.fillText(String(Math.round(n * sk)), sx, 495); }
+      c.font = ARCH(400, 34); c.fillStyle = C.ash; c.fillText(label, sx, 545);
+    });
+
+    // bio, word by word
+    PROFILE.bio.forEach((line, li) => {
+      const words = line.split(' ');
+      c.font = ARCH(li ? 400 : 500, 42);
+      let bx = 70;
+      words.forEach((w, wi) => {
+        const wk = at(.6 + li * .25 + wi * .04, .25);
+        c.globalAlpha = A * wk;
+        c.fillStyle = li ? rgba(C.bone, .85) : C.bone;
+        c.fillText(w, bx, 680 + li * 56 + (1 - wk) * 20);
+        bx += c.measureText(w + ' ').width;
+      });
+    });
+
+    // buttons: Follow (brand yellow) + Message; Follow flips to Following on the tap
+    const bk = at(.75);
+    c.globalAlpha = A * bk;
     const pressed = t >= T_TAP2;
-    const ps = 1 - .05 * Math.max(pulse(t, T_TAP2, .06), t >= T_TAP2 - .06 && t < T_TAP2 ? prog(t, T_TAP2 - .06, T_TAP2) : 0);
-    push((x) => { x.translate(W / 2, 1080); x.scale(ps, ps); x.globalAlpha = c.globalAlpha; });
-    roundRect(c, -440, -56, 880, 112, 22);
-    if (pressed) { c.fillStyle = C.ink3; c.fill(); c.strokeStyle = rgba(C.bone, .35); c.lineWidth = 2; c.stroke(); }
-    else both((ctx, glow) => { roundRect(ctx, -440, -56, 880, 112, 22); ctx.fillStyle = glow ? rgba(C.signal, .35) : C.signal; ctx.fill(); });
-    c.font = ARCH(700, 46); c.textAlign = 'center';
-    c.fillStyle = pressed ? C.bone : C.ink;
-    c.fillText(pressed ? 'Following' : 'Follow', pressed ? 22 : 0, 16);
+    const press = Math.max(pulse(t, T_TAP2, .06), t >= T_TAP2 - .06 && t < T_TAP2 ? prog(t, T_TAP2 - .06, T_TAP2) : 0);
+    c.save(); c.translate(350, 830); c.scale(1 - .05 * press, 1 - .05 * press);
+    roundRect(c, -280, -46, 560, 92, 18);
+    c.fillStyle = pressed ? C.ink3 : C.yellow; c.fill();
+    c.font = ARCH(700, 38); c.textAlign = 'center'; c.fillStyle = pressed ? C.bone : C.ink;
+    c.fillText(pressed ? 'Following' : 'Follow', pressed ? 18 : 0, 13);
     if (pressed) {
       const ck = prog(t, T_TAP2, T_TAP2 + .25, ease.outCubic);
-      c.strokeStyle = C.signal; c.lineWidth = 6; c.lineCap = 'round'; c.lineJoin = 'round';
-      c.beginPath(); c.moveTo(-148, 2);
-      c.lineTo(lerp(-148, -132, clamp(ck * 2)), lerp(2, 18, clamp(ck * 2)));
-      if (ck > .5) c.lineTo(lerp(-132, -104, (ck - .5) * 2), lerp(18, -14, (ck - .5) * 2));
+      c.strokeStyle = C.yellow; c.lineWidth = 5; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(-118, 0);
+      c.lineTo(lerp(-118, -104, clamp(ck * 2)), lerp(0, 14, clamp(ck * 2)));
+      if (ck > .5) c.lineTo(lerp(-104, -80, (ck - .5) * 2), lerp(14, -14, (ck - .5) * 2));
       c.stroke();
     }
-    c.textAlign = 'left';
-    pop();
+    c.restore();
+    roundRect(c, 650, 784, 360, 92, 18); c.fillStyle = C.ink3; c.fill();
+    c.font = ARCH(700, 38); c.textAlign = 'center'; c.fillStyle = C.bone; c.fillText('Message', 830, 843); c.textAlign = 'left';
 
-    // post grid: tiny charts pop in; the first is the one you just watched
-    const tiles = [
-      (m) => priceAt(m), (m) => 1 + Math.sin(m / 18) * .4 + m / 300, (m) => Math.exp(-m / 120) * 3 + .5,
-      (m) => 1 + (m / 322) ** 3 * 3, (m) => 2 + Math.sin(m / 9) * Math.cos(m / 31), (m) => 1 + m / 160,
-    ];
-    tiles.forEach((fn, i) => {
-      const at = T_PROF + .6 + i * .0625, tk = prog(t, at, at + .35, ease.outBack);
-      if (tk <= 0) return;
-      const col = i % 3, row = Math.floor(i / 3), sz = 296;
-      const x = 90 + col * (sz + 6), y = 1210 + row * (sz + 6);
-      c.save(); c.translate(x + sz / 2, y + sz / 2); c.scale(tk, tk); c.translate(-sz / 2, -sz / 2);
-      c.globalAlpha = Math.min(1, tk) * (1 - outro);
-      c.fillStyle = i === 0 ? C.ink3 : C.ink2; c.fillRect(0, 0, sz, sz);
-      let mx = 0; for (let m = 0; m <= M_END; m += 8) mx = Math.max(mx, fn(m));
-      c.strokeStyle = i === 0 ? C.signal : rgba(C.bone, .55); c.lineWidth = i === 0 ? 4 : 3; c.lineJoin = 'round';
-      c.beginPath();
-      for (let s = 0; s <= 60; s++) {
-        const m = s / 60 * M_END, px = 24 + s / 60 * (sz - 48), py = sz - 30 - fn(m) / mx * (sz - 80);
-        s ? c.lineTo(px, py) : c.moveTo(px, py);
-      }
-      c.stroke();
-      if (i === 0) mono('NVDA', 20, 38, { px: 20, col: C.signal, wght: 600, ls: 2 });
-      c.restore();
-    });
+    // tabs
+    const tk = at(.85);
+    c.globalAlpha = A * tk;
+    c.strokeStyle = C.bone; c.fillStyle = C.bone; c.lineWidth = 3.5;
+    for (let i = 0; i < 9; i++) c.fillRect(112 + (i % 3) * 17, 942 + Math.floor(i / 3) * 17, 13, 13);
+    roundRect(c, 384, 940, 44, 44, 10); c.stroke();
+    c.beginPath(); c.moveTo(399, 951); c.lineTo(399, 973); c.lineTo(417, 962); c.closePath(); c.stroke();
+    c.beginPath(); c.arc(675, 962, 20, Math.PI * .1, Math.PI * .9); c.stroke(); c.beginPath(); c.arc(675, 962, 20, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+    roundRect(c, 925, 940, 42, 44, 9); c.stroke(); c.beginPath(); c.arc(946, 957, 8, 0, TAU); c.stroke();
+    c.fillRect(30, 1010, 210 * tk, 4);
+
+    // the grid: the three posts, each drawing its own chart
+    c.globalAlpha = A;
+    const tw = 356, th = 474;
+    POSTS.forEach((p, i) => postTile(p, i * (tw + 6), 1020, tw, th, t, T_PROF + .9 + i * .125));
+
+    // after the follow: one line under the grid
+    const fl = prog(t, T_TAP2 + .25, T_TAP2 + .55, ease.outExpo);
+    if (fl > 0) mono('NEW CHARTS · MARKETS · ECONOMICS · HISTORY', W / 2, 1610 + (1 - fl) * 20, { px: 24, col: C.yellow, a: fl, align: 'center', ls: 4, wght: 500 });
     pop();
     c.globalAlpha = 1;
 
-    // finger taps Follow
     const fk = prog(t, T_TAP2 - .55, T_TAP2 - .05, ease.outCubic);
     const fo = 1 - prog(t, T_TAP2 + .3, T_TAP2 + .6);
-    if (fk > 0 && fo > 0) finger(lerp(860, 600, fk), lerp(1700, 1095, fk), t, T_TAP2, fk * fo);
-    burst(t, T_TAP2, W / 2, 1080, { n: 60, speed: 1200, seed: 31, life: .8 });
+    if (fk > 0 && fo > 0) finger(lerp(860, 380, fk), lerp(1700, 845, fk), t, T_TAP2, fk * fo);
+    burst(t, T_TAP2, 350, 830, { n: 60, speed: 1200, seed: 31, life: .8 });
   }
 
-  // ---------------- end line
-  const ek = prog(t, T_END, T_END + .3, ease.outExpo);
-  if (ek > 0) {
-    c.globalAlpha = ek * (1 - outro);
-    mono('FOLLOW FOR MORE DATA IN MOTION', W / 2, 300, { px: 26, col: C.signal, align: 'center', ls: 5, wght: 500 });
-    c.globalAlpha = 1;
+  // ---------------- end card: the mark, the handle, the line
+  if (t >= T_END) {
+    const e1 = prog(t, T_END, T_END + .35, ease.outExpo);
+    const fade = 1 - outro;
+    const s = 1 + .5 * (1 - e1);
+    c.save(); c.globalAlpha = fade;
+    c.translate(W / 2, 760); c.scale(s, s); c.translate(-W / 2, -760);
+    avatar(W / 2, 760, 170, t, prog(t, T_END, T_END + .6, ease.inOutCubic));
+    c.restore();
+    const e2 = prog(t, T_END + .5, T_END + .8, ease.outExpo);
+    if (e2 > 0) {
+      c.save(); c.globalAlpha = fade; c.translate(W / 2, 1060); c.scale(1 + .3 * (1 - e2), 1 + .3 * (1 - e2));
+      c.font = ARCH(900, 92); c.textAlign = 'center'; c.fillStyle = C.bone; c.fillText('@' + HANDLE, 0, 30);
+      c.restore();
+    }
+    const e3 = prog(t, T_END + 1.0, T_END + 1.3, ease.outExpo);
+    if (e3 > 0) {
+      c.globalAlpha = e3 * fade;
+      c.font = SERIF(64); c.textAlign = 'center'; c.fillStyle = C.yellow;
+      c.fillText(PROFILE.bio[0], W / 2, 1190 + (1 - e3) * 24);
+      c.textAlign = 'left';
+      mono('MARKETS · ECONOMICS · HISTORY', W / 2, 1265 + (1 - e3) * 24, { px: 26, col: C.ash, align: 'center', ls: 5, a: e3 * fade });
+      c.globalAlpha = 1;
+    }
+    burst(t, T_END, W / 2, 760, { n: 56, speed: 1300, seed: 41, life: .85 });
   }
-  if (outro > 0) sparkHead(W / 2, H / 2, t, 1.2 * (1 - outro));
+  if (outro > 0) sparkHead(W / 2, 760, t, 1.2 * (1 - outro));
 
   return {
-    shake: pulse(t, T_TAP1, .05) * 8 + pulse(t, T_TAP2, .06) * 16,
-    flash: pulse(t, T_TAP2, .06) * .25,
-    zoom: 1 + .025 * pulse(t, T_TAP2, .12) + .03 * pulse(t, T_PROF + .5, .15),
+    shake: pulse(t, T_TAP1, .05) * 8 + pulse(t, T_TAP2, .06) * 16 + pulse(t, T_END, .06) * 20,
+    flash: pulse(t, T_TAP2, .05) * .2 + pulse(t, T_END, .05) * .35,
+    zoom: 1 + .025 * pulse(t, T_TAP2, .12) + .03 * pulse(t, T_PROF + .5, .15) + .04 * pulse(t, T_END, .15),
   };
 }
 
@@ -783,9 +906,9 @@ function act4(t) {
 function renderScene(t) {
   c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.filter = 'none';
   c.globalCompositeOperation = 'source-over';
-  c.fillStyle = C.ink; c.fillRect(0, 0, cv.width, cv.height);
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, glowCv.width, glowCv.height);
   view(c); view(g);
+  c.fillStyle = BG; c.fillRect(0, 0, W, H);
 
   // a faint blueprint grid behind everything, drifting slowly
   c.strokeStyle = rgba(C.bone, .025); c.lineWidth = 1;
@@ -814,16 +937,20 @@ function renderScene(t) {
   if (t >= 19.9) { const o = act4(t); post.shake += o.shake; post.flash += o.flash; post.zoom *= o.zoom; }
 
   // frame furniture
-  const frameIn = prog(t, 0, .6, ease.outExpo) * (1 - prog(t, 26.4, 27, ease.inExpo));
+  const frameIn = prog(t, 0, .6, ease.outExpo) * (1 - prog(t, 29.4, 30, ease.inExpo));
   cropMarks(frameIn);
   c.globalAlpha = frameIn;
   mono('@DATAMOTIONHQ', W - 80, H - 76, { px: 20, col: C.ash, align: 'right', ls: 3 });
-  mono('SOURCE: YAHOO FINANCE', 80, H - 76, { px: 20, col: C.graphite, ls: 3 });
+  if (t < 20) mono('SOURCE: YAHOO FINANCE', 80, H - 76, { px: 20, col: C.graphite, ls: 3 });
   const b = Math.floor(t / BEAT) % 4;
   for (let i = 0; i < 4; i++) { c.fillStyle = rgba(i === b ? C.signal : C.bone, i === b ? 1 : .25); c.fillRect(80 + i * 18, 84, 10, 10); }
   c.globalAlpha = 1;
   return post;
 }
+
+const mkLayer = (div) => { const x = document.createElement('canvas'); x.width = cv.width / div; x.height = cv.height / div; return { cv: x, x: x.getContext('2d') }; };
+const bloomA = mkLayer(2), bloomB = mkLayer(8);
+const BG = (() => { const gr = c.createRadialGradient(W / 2, H * .38, 0, W / 2, H * .45, H * .8); gr.addColorStop(0, '#15202B'); gr.addColorStop(1, '#090D12'); return gr; })();
 
 // composite: scene → shake/zoom → bloom → vignette (grain is added once per output frame)
 const sceneCv = document.createElement('canvas');
@@ -841,9 +968,14 @@ function renderComposite(t) {
   c.drawImage(sceneCv, 0, 0);
   // bloom: glow layer blurred at two radii, added
   c.globalCompositeOperation = 'lighter';
-  c.filter = `blur(${8 * SCALE}px)`; c.drawImage(glowCv, 0, 0, cv.width, cv.height);
-  c.filter = `blur(${36 * SCALE}px)`; c.globalAlpha = .85; c.drawImage(glowCv, 0, 0, cv.width, cv.height);
-  c.filter = 'none'; c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  // blur at half and eighth resolution (cheap), then scale up: same look as a full-res blur
+  bloomA.x.clearRect(0, 0, bloomA.cv.width, bloomA.cv.height);
+  bloomA.x.filter = `blur(${4 * SCALE}px)`; bloomA.x.drawImage(glowCv, 0, 0, bloomA.cv.width, bloomA.cv.height);
+  bloomB.x.clearRect(0, 0, bloomB.cv.width, bloomB.cv.height);
+  bloomB.x.filter = `blur(${4.5 * SCALE}px)`; bloomB.x.drawImage(glowCv, 0, 0, bloomB.cv.width, bloomB.cv.height);
+  c.drawImage(bloomA.cv, 0, 0, cv.width, cv.height);
+  c.globalAlpha = .85; c.drawImage(bloomB.cv, 0, 0, cv.width, cv.height);
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   c.setTransform(1, 0, 0, 1, 0, 0);
   if (post.flash > .005) { c.fillStyle = rgba(C.bone, Math.min(.8, post.flash)); c.fillRect(0, 0, cv.width, cv.height); }
   const vg = c.createRadialGradient(cv.width / 2, cv.height / 2, cv.width * .35, cv.width / 2, cv.height / 2, cv.height * .72);

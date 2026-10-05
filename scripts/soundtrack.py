@@ -12,7 +12,7 @@ import numpy as np
 SR = 48000
 BPM = 120
 BEAT = 60 / BPM
-DUR = 27.0
+DUR = 30.0
 N = int(DUR * SR) + SR  # one second of tail room, trimmed at the end
 rng = np.random.default_rng(7)
 
@@ -20,7 +20,7 @@ rng = np.random.default_rng(7)
 MILESTONES = [7.780, 10.073, 11.750, 11.968, 13.674]  # first $1, $10, $50, $100, $200
 EVENTS = [3.422, 5.906, 6.307, 9.976, 11.063, 11.475]  # context bands stamping in
 T_TYPE, T_KEY, N_KEYS = 21.0, 0.125, 13
-T_RES, T_TAP1, T_PROF, T_TAP2, T_END = 22.75, 23.5, 24.0, 25.5, 26.0
+T_RES, T_TAP1, T_PROF, T_TAP2, T_END = 22.75, 23.5, 24.0, 26.5, 27.5
 
 L = np.zeros(N)
 R = np.zeros(N)
@@ -266,20 +266,26 @@ for k in range(8):  # the ×2,389 counter ticking up
     pop(17.5 + k * 0.1, 900 + k * 120, 0.08, pan=0.3)
 whoosh(19.4, 0.6, 0.45, reverse=True)
 
-# act 4 — the search
-PAD4 = [(57, [57, 60, 64]), (53, [53, 57, 60]), (48, [55, 60, 64])]
-for i, (root, chord) in enumerate(PAD4):
-    pad(20.0 + i * 2.0, chord + [chord[0] + 12], 2.0 + (1.0 if i == 2 else 0.0), 0.055, 1400)
+# act 4 — the search, the profile, the end card
+PAD4 = [(57, [57, 60, 64]), (53, [53, 57, 60]), (48, [55, 60, 64]), (55, [55, 59, 62])]
+for i in range(5):
+    root, chord = PAD4[i % 4]
+    pad(20.0 + i * 2.0, chord + [chord[0] + 12], 2.0 + (0.5 if i == 4 else 0.0), 0.055, 1400 + 200 * i)
 t = 20.0
-while t < 26.0 - 1e-6:
+while t < T_END - 1e-6:
     b = round((t - 20.0) / BEAT)
-    if b % 4 in (0, 2) or (b % 4 == 3):
-        kick(t if b % 4 != 3 else t + BEAT / 2, 0.55)
+    if b % 4 in (0, 2):
+        kick(t, 0.55)
+    if b % 4 == 3:
+        kick(t + BEAT / 2, 0.45)
     if b % 2 == 1:
         snare(t, 0.18)
     hat(t + BEAT / 2, 0.06)
-    root = PAD4[int((t - 20.0) // 2.0) % 3][0]
-    bass(t, root - 24, BEAT * 0.8, 0.22, 400)
+    if t >= T_PROF:  # the groove lifts once the profile is on screen
+        hat(t + BEAT / 4, 0.035, pan=-0.3)
+        hat(t + 3 * BEAT / 4, 0.035, pan=-0.3)
+    root = PAD4[int((t - 20.0) // 2.0) % 4][0]
+    bass(t, root - 24, BEAT * 0.8, 0.22, 400 + (300 if t >= T_PROF else 0))
     t += BEAT
 pop(20.0, 500, 0.25)  # the bar grows out of the spark
 whoosh(20.0, 0.5, 0.2)
@@ -291,15 +297,36 @@ for i in range(4):
     pop(T_RES + i * 0.0625, 600 + 150 * i, 0.18, pan=-0.2 + 0.15 * i)
 tap(T_TAP1)
 whoosh(T_PROF - 0.05, 0.55, 0.4)
-pop(T_PROF + 0.3, 520, 0.2)
+# the profile assembles: top bar, ring, stats, bio, buttons, posts
+pop(T_PROF + 0.2, 480, 0.15)
+riser(T_PROF + 0.1, 0.6, gain=0.12, f0=800, f1=5000)
+for i in range(3):
+    pop(T_PROF + 0.4 + i * 0.0625, 700 + 120 * i, 0.14, pan=-0.2 + 0.2 * i)
 for i in range(6):
-    pop(T_PROF + 0.6 + i * 0.0625, 800 + 90 * i, 0.1, pan=-0.5 + 0.2 * i)
+    key_click(T_PROF + 0.6 + i * 0.05, i)
+pop(T_PROF + 0.75, 560, 0.16)
+for i in range(3):
+    pop(T_PROF + 0.9 + i * 0.125, 820 + 140 * i, 0.16, pan=-0.4 + 0.4 * i)
+    pluck(T_PROF + 0.9 + i * 0.125, [72, 76, 79][i], 0.06)
+for k in range(10):  # view counters ticking
+    pop(T_PROF + 1.2 + k * 0.08, 1400 + k * 60, 0.04, pan=0.3)
+# follow: tap, bright chime, followers 2 → 3
 tap(T_TAP2, 0.6)
-for k, n_ in enumerate([72, 76, 79, 84]):  # follow: a bright rising chime
+for k, n_ in enumerate([72, 76, 79, 84]):
     bell(T_TAP2 + k * 0.06, midi(n_), 0.22, pan=-0.3 + 0.2 * k, dec=0.9)
-impact(T_TAP2, 0.35)
-pad(26.0, [45, 57, 60, 64, 72], 1.0, 0.07, 2200)
-bell(26.0, 440, 0.2, dec=1.2)
+impact(T_TAP2, 0.3)
+riser(T_TAP2 + 0.2, 0.8, gain=0.25, f0=400, f1=7000)
+# end card: the mark slams, the handle, the line
+impact(T_END, 0.9)
+kick(T_END, 0.9)
+pad(T_END, [45, 57, 60, 64, 69, 72], 2.5, 0.08, 2600)
+bass(T_END, 33, 2.0, 0.3, 300)
+bell(T_END, 440, 0.2, dec=1.4)
+kick(T_END + 0.5, 0.7)
+bell(T_END + 0.5, 659.25, 0.18, dec=1.0)
+for k, n_ in enumerate([69, 72, 76, 81]):
+    pluck(T_END + 1.0 + k * 0.125, n_ + 12, 0.08, pan=-0.3 + 0.2 * k)
+bell(T_END + 1.5, 880, 0.12, dec=1.5)
 
 # ================================================================ mix
 # sidechain the whole bed (not the kick) a little: pump
