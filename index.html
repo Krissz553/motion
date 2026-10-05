@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NVIDIA, in Motion</title>
-<meta name="description" content="26 years of NVIDIA's share price as a generative motion-graphics reel, by @datamotionhq.">
+<title>The Bitcoin Pizza</title>
+<meta name="description" content="Two pizzas bought for 10,000 BTC in 2010, flown through in 3D up to their value today. A motion-graphics reel by @datamotionhq.">
 <style>
   @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: block; src: url(fonts/archivo-var.woff2) format('woff2'); }
   @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 400 500; font-display: block; src: url(fonts/cormorant-italic-400.woff2) format('woff2'); }
@@ -35,59 +35,15 @@
 <div id="sound">tap for sound</div>
 <aside>
   tap: sound on / restart · space pause · ← → seek<br>
-  <a href="nvidia-datamotion.mp4" download>download mp4</a> · <a href="reel.html">reel 01</a>
+  <a href="bitcoin-pizza-datamotion.mp4" download>download mp4</a> · <a href="nvidia.html">nvidia</a> · <a href="reel.html">reel 01</a>
 </aside>
 <script>
 'use strict';
-// NVIDIA, in motion — a vertical (1080×1920) reel. Every frame is a pure function of time t.
-// 120 BPM; four acts: 01 the title slam, 02 the climb, 03 the payoff, 04 the search (@datamotionhq).
-
-// ================================================================ data
-// Monthly split-adjusted close, USD, 2000-01 … 2026-10 (322 months), traced from the source chart.
-const P = [
-  0.1, 0.13, 0.16, 0.19, 0.22, 0.28, 0.31, 0.31, 0.33, 0.32, 0.32, 0.32,
-  0.28, 0.3, 0.31, 0.32, 0.28, 0.26, 0.26, 0.26, 0.26, 0.24, 0.23, 0.2,
-  0.19, 0.18, 0.16, 0.17, 0.15, 0.15, 0.13, 0.11, 0.1, 0.1, 0.11, 0.12,
-  0.12, 0.12, 0.12, 0.14, 0.14, 0.15, 0.17, 0.16, 0.17, 0.2, 0.18, 0.18,
-  0.19, 0.18, 0.19, 0.19, 0.18, 0.19, 0.2, 0.21, 0.23, 0.22, 0.22, 0.2,
-  0.22, 0.22, 0.22, 0.22, 0.22, 0.24, 0.28, 0.26, 0.26, 0.29, 0.35, 0.38,
-  0.35, 0.32, 0.36, 0.36, 0.36, 0.41, 0.45, 0.46, 0.47, 0.48, 0.53, 0.54,
-  0.55, 0.55, 0.49, 0.54, 0.57, 0.58, 0.51, 0.5, 0.55, 0.5, 0.51, 0.57,
-  0.53, 0.61, 0.63, 0.62, 0.59, 0.58, 0.54, 0.54, 0.48, 0.44, 0.44, 0.41,
-  0.36, 0.37, 0.38, 0.33, 0.29, 0.28, 0.27, 0.26, 0.28, 0.25, 0.27, 0.24,
-  0.22, 0.23, 0.24, 0.24, 0.23, 0.22, 0.21, 0.22, 0.22, 0.23, 0.24, 0.24,
-  0.26, 0.27, 0.31, 0.31, 0.3, 0.29, 0.3, 0.32, 0.31, 0.31, 0.35, 0.28,
-  0.27, 0.28, 0.29, 0.3, 0.29, 0.31, 0.31, 0.3, 0.34, 0.34, 0.32, 0.32,
-  0.32, 0.33, 0.28, 0.3, 0.34, 0.32, 0.34, 0.38, 0.4, 0.44, 0.4, 0.4,
-  0.4, 0.42, 0.46, 0.39, 0.44, 0.41, 0.45, 0.42, 0.45, 0.5, 0.5, 0.51,
-  0.55, 0.56, 0.57, 0.64, 0.68, 0.66, 0.79, 0.71, 0.76, 0.75, 0.76, 0.81,
-  0.83, 0.87, 0.85, 0.86, 1.01, 1.05, 1.11, 1.16, 1.44, 1.67, 1.99, 2.0,
-  2.19, 2.23, 2.61, 3.06, 3.02, 3.55, 3.98, 4.07, 4.04, 4.63, 4.96, 5.27,
-  5.53, 5.69, 5.9, 6.0, 6.0, 6.32, 5.69, 5.3, 4.64, 4.18, 4.0, 4.4,
-  4.46, 4.26, 3.91, 4.02, 3.78, 3.99, 4.34, 4.9, 5.39, 5.71, 6.0, 6.44,
-  7.17, 7.76, 8.64, 11.12, 11.71, 12.44, 12.73, 12.88, 12.88, 12.88, 13.03, 13.91,
-  15.37, 16.69, 17.71, 19.32, 20.78, 23.86, 26.35, 26.64, 28.25, 26.93, 23.42, 22.69,
-  21.52, 19.47, 16.54, 15.81, 14.93, 14.05, 14.2, 15.66, 17.71, 20.05, 21.81, 26.93,
-  34.98, 37.18, 42.01, 45.23, 45.23, 44.64, 45.08, 50.94, 62.94, 69.38, 73.77, 91.04,
-  103.92, 105.09, 110.36, 119.73, 124.12, 128.81, 129.83, 129.24, 127.63, 121.49, 117.68, 125.59,
-  136.12, 143.59, 156.47, 174.18, 188.09, 188.67, 189.7, 189.55, 184.28, 185.6, 191.6, 192.92,
-  195.99, 207.41, 219.85, 220.43, 221.6, 232.0, 235.8, 239.02, 238.88, 238.9,
-];
-const M_END = P.length - 1;
-const runMax = P.reduce((a, v, i) => (a.push(Math.max(v, i ? a[i - 1] : v)), a), []);
-const priceAt = (m) => {
-  m = Math.max(0, Math.min(M_END, m));
-  const i = Math.floor(m), f = m - i;
-  return i >= M_END ? P[M_END] : P[i] + (P[i + 1] - P[i]) * f;
-};
-const monthLabel = (m) => {
-  const k = Math.floor(Math.max(0, Math.min(M_END, m)));
-  return `${2000 + Math.floor(k / 12)}-${String(k % 12 + 1).padStart(2, '0')}`;
-};
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// The Bitcoin Pizza: a vertical (1080×1920) reel. Every frame is a pure function of time t.
+// 120 BPM; four acts: 01 the hook, 02 the 3D flight 2010→2026, 03 the payoff, 04 the search and the profile (@datamotionhq).
 
 // ================================================================ constants
-const W = 1080, H = 1920, BPM = 120, BEAT = 60 / BPM, DUR = 30;
+const W = 1080, H = 1920, BPM = 120, BEAT = 60 / BPM, DUR = 36;
 // the @datamotionhq look: deep navy, coral price lines, the brand yellow, and a few series colours
 const C = {
   ink: '#0C1117', ink2: '#141B23', ink3: '#1E2731', graphite: '#4B5763', ash: '#8B96A1',
@@ -258,313 +214,612 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
 }
 
-// ================================================================ the timeline
-// Act 02 maps time to months: the flat years pass fast, the run-up gets room.
-const T_CLIMB0 = 3.0, T_CLIMB1 = 16.5;
-const monthAt = (t) => keys(t, [[T_CLIMB0, 0], [7.0, 180, ease.inQuad], [11.0, 262, ease.linear], [T_CLIMB1, M_END, ease.outCubic]]);
-const ymaxAt = (t) => {
-  const m = monthAt(t + .3);
-  return Math.max(.6, Math.max(runMax[Math.floor(m)], priceAt(m)) * 1.14);
-};
-// the chart
-const CX0 = 150, CX1 = 860, CY1 = 720, CY0 = 1440;
-const xOf = (m) => CX0 + m / M_END * (CX1 - CX0);
-const yOf = (v, ym) => CY0 - v / ym * (CY0 - CY1);
-const EVENTS = [
-  { name: 'DOT-COM', m0: 2, m1: 33, row: 0, col: 'purple' },
-  { name: 'FINANCIAL CRISIS', m0: 95, m1: 113, row: 1, col: 'amber' },
-  { name: 'EURO DEBT', m0: 123, m1: 150, row: 0, col: 'amber' },
-  { name: 'COVID-19', m0: 241, m1: 251, row: 0, col: 'teal' },
-  { name: 'INFLATION', m0: 264, m1: 281, row: 1, col: 'yellow' },
-  { name: 'AI BOOM', m0: 276, m1: M_END, row: 2, hot: true },
+// ================================================================ data
+// Bitcoin Pizza Day: on 2010-05-22 two pizzas were bought for 10,000 BTC (about $41).
+// USD = what those 10,000 BTC were worth, weekly (Coin Metrics daily PriceUSD × 10,000). DAYS since 2010-05-22.
+const DAYS = [
+  0, 57, 64, 71, 78, 85, 92, 99, 106, 113, 120, 127, 134, 141, 144, 148,
+  155, 162, 169, 176, 183, 190, 197, 204, 211, 218, 225, 232, 239, 246, 253, 260,
+  263, 267, 274, 281, 288, 295, 302, 309, 316, 323, 330, 337, 344, 351, 358, 365,
+  372, 376, 379, 386, 393, 400, 407, 414, 421, 428, 435, 442, 449, 456, 463, 470,
+  477, 484, 491, 498, 505, 512, 519, 526, 533, 540, 547, 554, 561, 568, 575, 582,
+  589, 596, 603, 610, 617, 624, 631, 638, 645, 652, 659, 666, 673, 680, 687, 694,
+  701, 708, 715, 722, 729, 736, 743, 750, 757, 764, 771, 778, 785, 792, 799, 806,
+  813, 820, 827, 834, 841, 848, 855, 862, 869, 876, 883, 890, 897, 904, 911, 918,
+  925, 932, 939, 946, 953, 960, 967, 974, 981, 988, 995, 1002, 1009, 1016, 1023, 1030,
+  1037, 1044, 1045, 1051, 1058, 1065, 1072, 1079, 1086, 1093, 1100, 1107, 1114, 1121, 1128, 1135,
+  1142, 1149, 1156, 1163, 1170, 1177, 1184, 1191, 1198, 1205, 1212, 1219, 1226, 1233, 1240, 1247,
+  1254, 1261, 1268, 1275, 1282, 1286, 1289, 1296, 1303, 1310, 1317, 1324, 1331, 1338, 1345, 1352,
+  1359, 1366, 1373, 1380, 1387, 1394, 1401, 1408, 1415, 1422, 1429, 1436, 1443, 1450, 1457, 1464,
+  1471, 1478, 1485, 1492, 1499, 1506, 1513, 1520, 1527, 1534, 1541, 1548, 1555, 1562, 1569, 1576,
+  1583, 1590, 1597, 1604, 1611, 1618, 1625, 1632, 1639, 1646, 1653, 1660, 1667, 1674, 1681, 1688,
+  1695, 1702, 1709, 1716, 1723, 1730, 1737, 1744, 1751, 1758, 1765, 1772, 1779, 1786, 1793, 1800,
+  1807, 1814, 1821, 1828, 1835, 1842, 1849, 1856, 1863, 1870, 1877, 1884, 1891, 1898, 1905, 1912,
+  1919, 1926, 1933, 1940, 1947, 1954, 1961, 1968, 1975, 1982, 1989, 1996, 2003, 2010, 2017, 2024,
+  2031, 2038, 2045, 2052, 2059, 2066, 2073, 2080, 2087, 2094, 2101, 2108, 2115, 2122, 2129, 2136,
+  2143, 2150, 2157, 2164, 2171, 2178, 2185, 2192, 2199, 2206, 2213, 2220, 2227, 2234, 2241, 2248,
+  2255, 2262, 2269, 2276, 2283, 2290, 2297, 2304, 2311, 2318, 2325, 2332, 2339, 2346, 2353, 2360,
+  2367, 2374, 2381, 2388, 2395, 2402, 2409, 2416, 2423, 2430, 2437, 2444, 2451, 2458, 2465, 2472,
+  2479, 2486, 2493, 2500, 2507, 2514, 2521, 2528, 2535, 2542, 2549, 2556, 2563, 2570, 2577, 2584,
+  2591, 2598, 2605, 2612, 2619, 2626, 2633, 2640, 2647, 2654, 2661, 2668, 2675, 2682, 2689, 2696,
+  2703, 2710, 2717, 2724, 2731, 2738, 2745, 2750, 2752, 2759, 2766, 2773, 2780, 2787, 2794, 2801,
+  2808, 2815, 2822, 2829, 2836, 2843, 2850, 2857, 2864, 2871, 2878, 2885, 2892, 2899, 2906, 2913,
+  2920, 2927, 2934, 2941, 2948, 2955, 2962, 2969, 2976, 2983, 2990, 2997, 3004, 3011, 3018, 3025,
+  3032, 3039, 3046, 3053, 3060, 3067, 3074, 3081, 3088, 3095, 3102, 3109, 3116, 3123, 3130, 3137,
+  3144, 3151, 3158, 3165, 3172, 3179, 3186, 3193, 3200, 3207, 3214, 3221, 3228, 3235, 3242, 3249,
+  3256, 3263, 3270, 3277, 3284, 3291, 3298, 3305, 3312, 3319, 3326, 3333, 3340, 3347, 3354, 3361,
+  3368, 3375, 3382, 3389, 3396, 3403, 3410, 3417, 3424, 3431, 3438, 3445, 3452, 3459, 3466, 3473,
+  3480, 3487, 3494, 3501, 3508, 3515, 3522, 3529, 3536, 3543, 3550, 3557, 3564, 3571, 3578, 3585,
+  3592, 3599, 3606, 3613, 3620, 3627, 3634, 3641, 3648, 3655, 3662, 3669, 3676, 3683, 3690, 3697,
+  3704, 3711, 3718, 3725, 3732, 3739, 3746, 3753, 3760, 3767, 3774, 3781, 3788, 3795, 3802, 3809,
+  3816, 3823, 3830, 3837, 3844, 3851, 3858, 3865, 3872, 3879, 3886, 3893, 3900, 3907, 3914, 3921,
+  3928, 3935, 3942, 3949, 3956, 3963, 3970, 3977, 3984, 3991, 3998, 4005, 4012, 4019, 4026, 4033,
+  4040, 4047, 4054, 4061, 4068, 4075, 4082, 4089, 4096, 4103, 4110, 4117, 4124, 4131, 4138, 4145,
+  4152, 4159, 4166, 4173, 4180, 4187, 4194, 4201, 4208, 4215, 4222, 4229, 4236, 4243, 4250, 4257,
+  4264, 4271, 4278, 4285, 4292, 4299, 4306, 4313, 4320, 4327, 4334, 4341, 4348, 4355, 4362, 4369,
+  4376, 4383, 4390, 4397, 4404, 4411, 4418, 4425, 4432, 4439, 4446, 4453, 4460, 4467, 4474, 4481,
+  4488, 4495, 4502, 4509, 4516, 4523, 4530, 4537, 4544, 4551, 4558, 4565, 4572, 4579, 4586, 4593,
+  4600, 4607, 4614, 4621, 4628, 4635, 4642, 4649, 4656, 4663, 4670, 4677, 4684, 4691, 4698, 4705,
+  4712, 4719, 4726, 4733, 4740, 4747, 4754, 4761, 4768, 4775, 4782, 4789, 4796, 4803, 4810, 4817,
+  4824, 4831, 4838, 4845, 4852, 4859, 4866, 4873, 4880, 4887, 4894, 4901, 4908, 4915, 4922, 4929,
+  4936, 4943, 4950, 4957, 4964, 4971, 4978, 4985, 4992, 4999, 5006, 5013, 5020, 5027, 5034, 5041,
+  5048, 5055, 5062, 5069, 5076, 5083, 5090, 5097, 5104, 5111, 5118, 5125, 5132, 5139, 5146, 5153,
+  5160, 5167, 5174, 5181, 5188, 5195, 5202, 5209, 5216, 5223, 5230, 5237, 5244, 5251, 5258, 5265,
+  5272, 5279, 5286, 5293, 5300, 5307, 5314, 5321, 5328, 5335, 5342, 5349, 5356, 5363, 5370, 5377,
+  5384, 5391, 5398, 5405, 5412, 5419, 5426, 5433, 5440, 5447, 5454, 5461, 5468, 5475, 5482, 5489,
+  5496, 5503, 5510, 5517, 5524, 5531, 5538, 5545, 5552, 5559, 5566, 5573, 5580, 5587, 5594, 5601,
+  5608, 5615, 5616, 5622, 5629, 5636, 5643, 5650, 5657, 5664, 5671, 5678, 5685, 5692, 5699, 5706,
+  5713, 5720, 5727, 5734, 5741, 5748, 5755, 5762, 5769, 5776, 5783, 5790, 5797, 5804, 5811, 5818,
+  5825, 5832, 5839, 5844,
 ];
-// first month the price closes above each milestone, and the time the spark gets there
-const MILESTONES = [1, 10, 50, 100, 200].map((v) => {
-  const m = P.findIndex((p) => p >= v);
-  let lo = T_CLIMB0, hi = T_CLIMB1;
-  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; monthAt(mid) < m ? lo = mid : hi = mid; }
-  return { v, m, t: hi };
-});
+const USD = [
+  41, 858.4, 505.4, 611, 609, 651.2, 659.3, 640, 616.5, 615,
+  627, 620, 610.6, 971.5, 1049, 1020, 1150, 1925, 3400, 2790,
+  2768, 2714, 2029, 2199, 2401, 2650, 3000, 3230, 3868, 4424,
+  4771, 8980, 10160, 10500, 8650, 8950, 8848, 8925, 7415, 8220,
+  7790, 7332, 10980, 16320, 30940, 38490, 69250, 67120, 84010, 107000,
+  165400, 188500, 175100, 163600, 154600, 146200, 132600, 139900, 133700, 85020,
+  108100, 113500, 90310, 82030, 58530, 52370, 53410, 50070, 41120, 36100,
+  31480, 32570, 29630, 29860, 22020, 24780, 28200, 32490, 31940, 42340,
+  52950, 70970, 70470, 63030, 53910, 56780, 55190, 43900, 49260, 48340,
+  48920, 52700, 45520, 47930, 47790, 49620, 51960, 49030, 50480, 49450,
+  50940, 51350, 52130, 54580, 62000, 63500, 66270, 67960, 76270, 85070,
+  87480, 108100, 115900, 78310, 105500, 102300, 110600, 118900, 121700, 123900,
+  118700, 116500, 116600, 107100, 108000, 108400, 116700, 125300, 125000, 133500,
+  133300, 133200, 134500, 135000, 141600, 157200, 178600, 205800, 239000, 269300,
+  298800, 344500, 460700, 473300, 716900, 939000, 1036000, 1629000, 888600, 1185000,
+  1346000, 1165000, 1149000, 1170000, 1302000, 1226000, 999000, 990400, 1003000, 894800,
+  721100, 898900, 856600, 927500, 963700, 942700, 991800, 1131000, 1305000, 1181000,
+  1251000, 1231000, 1271000, 1225000, 1324000, 1665000, 1945000, 2103000, 3276000, 4853000,
+  8072000, 10070000, 9645000, 7836000, 8641000, 6150000, 7273000, 9025000, 8452000, 8384000,
+  8145000, 8145000, 6874000, 6233000, 6101000, 5585000, 6406000, 6342000, 5590000, 4590000,
+  4586000, 4164000, 5016000, 4387000, 4367000, 4391000, 4470000, 5733000, 6301000, 6578000,
+  5897000, 5996000, 6008000, 6347000, 6299000, 6252000, 5916000, 5868000, 5894000, 4978000,
+  5084000, 4785000, 4784000, 4756000, 4004000, 3755000, 3228000, 3779000, 3887000, 3531000,
+  3242000, 3636000, 3902000, 3678000, 3787000, 3766000, 3561000, 3210000, 3170000, 2633000,
+  2688000, 2111000, 2545000, 2271000, 2240000, 2344000, 2367000, 2607000, 2753000, 2873000,
+  2689000, 2430000, 2611000, 2371000, 2233000, 2205000, 2405000, 2407000, 2370000, 2407000,
+  2295000, 2234000, 2325000, 2443000, 2491000, 2713000, 3115000, 2753000, 2933000, 2824000,
+  2663000, 2589000, 2287000, 2290000, 2408000, 2305000, 2314000, 2332000, 2395000, 2485000,
+  2635000, 2860000, 3299000, 3724000, 3199000, 3237000, 3717000, 3933000, 4344000, 4422000,
+  4227000, 4301000, 4486000, 3825000, 4034000, 3663000, 3752000, 4062000, 4387000, 4331000,
+  4037000, 4118000, 4121000, 4255000, 4201000, 4220000, 4293000, 4634000, 4550000, 4614000,
+  4609000, 4406000, 5275000, 5751000, 6704000, 7668000, 6304000, 6626000, 6500000, 6811000,
+  6614000, 6248000, 5947000, 5714000, 5808000, 5751000, 6105000, 6082000, 6115000, 6006000,
+  6117000, 6171000, 6429000, 6520000, 6993000, 7159000, 7036000, 7304000, 7277000, 7664000,
+  7705000, 7906000, 8960000, 9973000, 9125000, 8245000, 9225000, 9156000, 10150000, 10060000,
+  10590000, 11820000, 12760000, 12320000, 10200000, 9630000, 11060000, 12140000, 11740000, 12500000,
+  13820000, 15260000, 17950000, 20450000, 22260000, 25250000, 29740000, 25080000, 24980000, 25190000,
+  25060000, 19110000, 27530000, 27490000, 32300000, 40640000, 40860000, 43450000, 46250000, 42620000,
+  37120000, 36770000, 43820000, 46010000, 56900000, 59970000, 61750000, 73710000, 58290000, 80180000,
+  93200000, 108100000, 112100000, 154700000, 192500000, 140300000, 139200000, 162300000, 136800000, 114200000,
+  116200000, 82510000, 80970000, 104500000, 96030000, 114600000, 95140000, 81890000, 84410000, 68050000,
+  70100000, 83420000, 88010000, 93970000, 95950000, 86960000, 85110000, 73380000, 77020000, 67450000,
+  64510000, 61460000, 63610000, 67050000, 63480000, 73990000, 82300000, 70320000, 63150000, 64910000,
+  66900000, 72870000, 62490000, 64970000, 67030000, 66040000, 65650000, 61830000, 64150000, 64070000,
+  64200000, 63350000, 55550000, 39470000, 40990000, 35400000, 31950000, 39430000, 38250000, 40460000,
+  35090000, 35380000, 35380000, 34130000, 36420000, 36230000, 37540000, 37820000, 39040000, 39670000,
+  39710000, 40940000, 51890000, 51570000, 52960000, 51490000, 57280000, 69430000, 82200000, 87320000,
+  87440000, 76340000, 90200000, 107900000, 108400000, 114600000, 102800000, 105900000, 95300000, 109900000,
+  115300000, 103300000, 101000000, 97630000, 104100000, 103100000, 100500000, 80650000, 78550000, 82910000,
+  82140000, 95580000, 92100000, 90430000, 85050000, 69430000, 74180000, 75290000, 71110000, 74790000,
+  73920000, 73460000, 81650000, 86870000, 85740000, 93390000, 101500000, 99520000, 99730000, 85420000,
+  81100000, 53590000, 58310000, 59050000, 67910000, 69790000, 71500000, 76840000, 88970000, 87150000,
+  96830000, 88060000, 94340000, 97480000, 93430000, 92850000, 91080000, 90800000, 92890000, 92190000,
+  99340000, 110900000, 116800000, 119000000, 116700000, 117000000, 102500000, 103200000, 109200000, 107600000,
+  106700000, 113800000, 114900000, 130400000, 137400000, 155000000, 159900000, 184800000, 181900000, 193600000,
+  191600000, 235300000, 264300000, 332800000, 383300000, 360700000, 322200000, 331600000, 390000000, 488300000,
+  575000000, 453600000, 510900000, 599100000, 574500000, 557100000, 582000000, 599300000, 563900000, 489500000,
+  565700000, 582900000, 460200000, 347700000, 356500000, 357200000, 389300000, 356000000, 345100000, 353600000,
+  342600000, 317100000, 351200000, 399700000, 439700000, 470700000, 493600000, 489500000, 517500000, 461800000,
+  472200000, 431300000, 482000000, 547000000, 614600000, 608700000, 614300000, 630400000, 650300000, 590300000,
+  572500000, 493300000, 501400000, 468800000, 508000000, 473500000, 418900000, 431700000, 362700000, 379800000,
+  423600000, 422000000, 385500000, 376600000, 384000000, 378100000, 412900000, 467800000, 464400000, 422600000,
+  397000000, 395100000, 384600000, 340600000, 311800000, 303300000, 294300000, 299200000, 268300000, 204900000,
+  210700000, 192800000, 208300000, 208300000, 226500000, 233600000, 231500000, 243100000, 215500000, 196700000,
+  199600000, 217300000, 194300000, 187900000, 190200000, 194300000, 192600000, 195700000, 206200000, 209500000,
+  163200000, 162500000, 164400000, 171200000, 170900000, 167800000, 168200000, 166100000, 170600000, 208800000,
+  227200000, 237700000, 229600000, 217700000, 243700000, 235400000, 224200000, 220700000, 281900000, 280500000,
+  281600000, 283600000, 303100000, 276000000, 293600000, 287600000, 269200000, 267800000, 281000000, 271600000,
+  259100000, 263500000, 304700000, 305900000, 301600000, 302500000, 300700000, 292600000, 290500000, 292900000,
+  261800000, 260900000, 259600000, 258300000, 265000000, 262900000, 279500000, 279400000, 271300000, 299800000,
+  345700000, 351100000, 370500000, 374400000, 374800000, 399800000, 437300000, 414300000, 431000000, 422200000,
+  438400000, 418900000, 415400000, 419800000, 425800000, 482000000, 521500000, 517500000, 629900000, 688800000,
+  682900000, 672900000, 712300000, 693900000, 656500000, 649700000, 629800000, 640700000, 614300000, 662600000,
+  684500000, 678100000, 696400000, 666200000, 633500000, 627600000, 561100000, 610200000, 680600000, 681700000,
+  583100000, 588400000, 587900000, 645000000, 573500000, 548600000, 591300000, 635700000, 656200000, 627900000,
+  627600000, 690100000, 680000000, 687400000, 804100000, 897300000, 979800000, 974700000, 1008000000, 1046000000,
+  951500000, 934600000, 984100000, 943500000, 1010000000, 1028000000, 974200000, 963100000, 961800000, 960900000,
+  943300000, 806500000, 824900000, 857600000, 822200000, 779500000, 835700000, 851000000, 938100000, 943800000,
+  1040000000, 1060000000, 1089000000, 1058000000, 1057000000, 1055000000, 1009000000, 1084000000, 1092000000, 1189000000,
+  1173000000, 1194000000, 1143000000, 1192000000, 1176000000, 1135000000, 1083000000, 1113000000, 1154000000, 1153000000,
+  1122000000, 1235000000, 1248000000, 1152000000, 1087000000, 1146000000, 1104000000, 1047000000, 941800000, 868700000,
+  906100000, 900700000, 881000000, 885300000, 877500000, 913600000, 907200000, 942600000, 864500000, 769100000,
+  705200000, 686300000, 675500000, 657300000, 662000000, 727100000, 680200000, 659700000, 689200000, 706900000,
+  739100000, 785400000, 786500000, 822600000, 775000000, 755675430,
+];
+const NPT = DAYS.length, LAST = NPT - 1;
+const LV = USD.map((v) => Math.log10(v));
+const LV0 = Math.log10(41);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateOf = (day) => new Date(Date.UTC(2010, 4, 22) + day * 864e5);
+const fmtDate = (day) => { const d = dateOf(day); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+const idxOfDay = (day) => { let lo = 0, hi = LAST; while (hi - lo > 1) { const m = (lo + hi) >> 1; DAYS[m] < day ? lo = m : hi = m; } return DAYS[lo] >= day ? lo : hi; };
+const dayOfDate = (y, m, d) => Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2010, 4, 22)) / 864e5);
+const lvAt = (i) => { i = Math.max(0, Math.min(LAST, i)); const k = Math.floor(i), f = i - k; return k >= LAST ? LV[LAST] : LV[k] + (LV[k + 1] - LV[k]) * f; };
+const valAt = (i) => 10 ** lvAt(i);
+const dayAt = (i) => { i = Math.max(0, Math.min(LAST, i)); const k = Math.floor(i), f = i - k; return k >= LAST ? DAYS[LAST] : DAYS[k] + (DAYS[k + 1] - DAYS[k]) * f; };
+// a smoothed copy of the log value for the camera to follow (no jitter from weekly noise)
+const LVS = LV.map((_, i) => { let s = 0, n = 0; for (let k = -14; k <= 14; k++) { const j = i + k; if (j >= 0 && j <= LAST) { s += LV[j]; n++; } } return s / n; });
+const lvsAt = (i) => { i = Math.max(0, Math.min(LAST, i)); const k = Math.floor(i), f = i - k; return k >= LAST ? LVS[LAST] : LVS[k] + (LVS[k + 1] - LVS[k]) * f; };
+const PEAK_I = LV.indexOf(Math.max(...LV));
+const fmtMoney = (v) => v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? '$' + (v / 1e6).toFixed(v >= 1e8 ? 1 : 2) + 'M' : '$' + fmtInt(v);
 
-// ================================================================ act 01 — title slam (0–3 s)
-function act1(t) {
-  const words = [
-    { s: 'SHARE', at: .5, y: 760, px: 200, stretch: 'expanded' },
-    { s: 'PRICE', at: 1.0, y: 960, px: 200, stretch: 'expanded' },
-    { s: 'NVIDIA', at: 1.5, y: 1210, px: 250, stretch: 'normal', dot: true },
-  ];
-  const lift = prog(t, 2.55, 3.0, ease.inExpo);
-  // ignition
-  const ig = prog(t, 0, .45, ease.outExpo);
-  if (t < .6) sparkHead(W / 2, H / 2 + (1 - ig) * 120, t, .6 + 1.2 * ig);
-  burst(t, .5, W / 2, H / 2, { n: 46, seed: 2 });
-  c.textBaseline = 'alphabetic';
-  for (const w of words) {
-    if (t < w.at) continue;
-    const a = t - w.at;
-    const s = 1 + .5 * (1 - ease.outExpo(clamp(a / .25))) + .02 * a;
-    push((x) => { x.translate(W / 2, w.y - w.px * .34 - lift * 900); x.scale(s, s); });
-    c.font = ARCH(900, w.px, w.stretch);
-    c.globalAlpha = 1 - lift;
-    const tw = c.measureText(w.s).width + (w.dot ? w.px * .28 : 0);
-    c.fillStyle = a < .25 ? C.signal : C.bone;
-    c.fillText(w.s, -tw / 2, w.px * .34);
-    if (w.dot) {
-      const dx = -tw / 2 + c.measureText(w.s).width + w.px * .03, dy = w.px * .34 - w.px * .08;
-      both((ctx, glow) => { ctx.globalAlpha = 1 - lift; ctx.fillStyle = glow ? rgba(C.signal, .9) : C.signal; ctx.fillRect(dx, dy - w.px * .06, w.px * .16, w.px * .16); });
+// ================================================================ the timeline
+// Act 02 flies the 3D chart: about one year per second, then a crane-out reveal.
+const T2A = 4.0, T2B = 20.5, T2END = 22.0;
+const idxAt = (t) => keys(t, [[T2A, 0], [T2A + .5, 6, ease.inQuad], [T2B, LAST, ease.linear]]);
+const timeOfIdx = (i) => { let lo = T2A, hi = T2B; for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; idxAt(m) < i ? lo = m : hi = m; } return hi; };
+// every 10x of the pizzas' value (a chime), and the four gates the camera flies through
+const DECADES = [];
+for (let e = 2; e <= 9; e++) { const i = LV.findIndex((v) => v >= e); if (i >= 0) DECADES.push({ e, i, t: timeOfIdx(i) }); }
+const GATES = DECADES.filter((d) => d.e >= 6).map((d) => ({ ...d, label: ['$1 MILLION', '$10 MILLION', '$100 MILLION', '$1 BILLION'][d.e - 6] }));
+const EVENTS = [
+  { name: 'MT. GOX COLLAPSE', day: dayOfDate(2014, 2, 24), col: 'amber' },
+  { name: 'CRYPTO WINTER', day: dayOfDate(2018, 12, 15), col: 'purple' },
+  { name: 'COVID CRASH', day: dayOfDate(2020, 3, 12), col: 'teal' },
+  { name: 'FTX COLLAPSE', day: dayOfDate(2022, 11, 9), col: 'magenta' },
+  { name: 'SPOT ETFs', day: dayOfDate(2024, 1, 11), col: 'blue' },
+].map((e) => { const i = idxOfDay(e.day); return { ...e, i, t: timeOfIdx(i) }; });
+const PEAK_T = timeOfIdx(PEAK_I);
+
+// ================================================================ 3D
+const SXW = 13; // world units per weekly point
+const Xw = (i) => i * SXW;
+const Yw = (lv) => (lv - LV0) * 300;
+const YMAX = Yw(Math.max(...LV));
+const DEPTH = 70; // ribbon thickness
+const v3 = (x, y, z) => ({ x, y, z });
+const sub = (a, b) => v3(a.x - b.x, a.y - b.y, a.z - b.z);
+const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+const cross = (a, b) => v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+const norm = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return v3(a.x / l, a.y / l, a.z / l); };
+const lerp3 = (a, b, k) => v3(lerp(a.x, b.x, k), lerp(a.y, b.y, k), lerp(a.z, b.z, k));
+
+function camAt(t) {
+  const i = idxAt(Math.min(t, T2B));
+  const hx = Xw(i), hy = Yw(lvsAt(i));
+  // chase from behind and to the side, so the ribbon recedes in depth; a slow orbit keeps it alive
+  const orbit = .78 + .16 * Math.sin(t * .42) + .08 * Math.sin(t * .17);
+  const dist = 1500 + 250 * Math.sin(t * .3);
+  let pos = v3(hx - Math.cos(orbit) * dist, hy + 640 + 160 * Math.sin(t * .5), Math.sin(orbit) * dist);
+  let tgt = v3(hx + 560, hy + 60, -120);
+  let f = 1000;
+  // the reveal: crane out to see the whole flight
+  const r = prog(t, T2B, T2END, ease.inOutCubic);
+  if (r > 0) {
+    const wpos = v3(-700, YMAX * 1.2, 3400), wtgt = v3(Xw(LAST) * .58, YMAX * .45, -200);
+    pos = lerp3(pos, wpos, r); tgt = lerp3(tgt, wtgt, r); f = lerp(f, 1500, r);
+  }
+  // punch-ins through the gates
+  for (const gt of GATES) f *= 1 + .1 * pulse(t, gt.t, .12);
+  const fwd = norm(sub(tgt, pos));
+  const roll = .05 * Math.sin(t * .37);
+  const upW = v3(Math.sin(roll), Math.cos(roll), 0);
+  const right = norm(cross(fwd, upW));
+  const up = cross(right, fwd);
+  return { pos, fwd, right, up, f, cx: W / 2, cy: H * .62 };
+}
+const NEAR = 30;
+function proj(cam, p) {
+  const d = sub(p, cam.pos);
+  const z = dot(d, cam.fwd);
+  return { x: cam.cx + cam.f * dot(d, cam.right) / Math.max(z, NEAR), y: cam.cy - cam.f * dot(d, cam.up) / Math.max(z, NEAR), z };
+}
+const fogA = (z) => clamp(1 - (z - 3500) / 6000) * clamp((z - NEAR) / 120);
+// a 3D segment, clipped at the near plane
+function seg3(ctx, cam, a, b) {
+  const da = dot(sub(a, cam.pos), cam.fwd), db = dot(sub(b, cam.pos), cam.fwd);
+  if (da < NEAR && db < NEAR) return false;
+  if (da < NEAR) a = lerp3(a, b, (NEAR - da) / (db - da));
+  if (db < NEAR) b = lerp3(b, a, (NEAR - db) / (da - db));
+  const pa = proj(cam, a), pb = proj(cam, b);
+  ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
+  return true;
+}
+// text standing in the world, scaled by perspective
+function text3(cam, p, str, px, col, { font = (s) => ARCH(800, s), align = 'center', a = 1, glow = false } = {}) {
+  const q = proj(cam, p);
+  if (q.z < NEAR * 2) return null;
+  const s = px * cam.f / q.z;
+  if (s < 4) return null;
+  const al = a * fogA(q.z);
+  const draw = (ctx, isGlow) => {
+    ctx.font = font(s); ctx.textAlign = align; ctx.fillStyle = isGlow ? rgba(col, .6 * al) : rgba(col, al);
+    ctx.fillText(str, q.x, q.y); ctx.textAlign = 'left';
+  };
+  if (glow) both(draw); else draw(c, false);
+  return q;
+}
+
+// ================================================================ pizza (3D, orthographic)
+const PEPS = (() => { const a = []; for (let s = 0; s < 8; s++) for (let k = 0; k < 2; k++) a.push({ s, ang: (s + .22 + .56 * hash(s, k, 1)) * TAU / 8, r: .3 + .48 * hash(s, k, 2) }); return a; })();
+function drawPizza(cx, cy, R, rot, tilt, o = {}) {
+  const st = Math.sin(tilt), ct = Math.cos(tilt), TH = R * .11;
+  const lift = o.lift || 0, li = o.liftIdx ?? -1;
+  const P2 = (x, z, y = 0, s = -1) => {
+    if (s === li && lift > 0) { const b = (s + .5) * TAU / 8; x += Math.cos(b) * R * .42 * lift; z += Math.sin(b) * R * .42 * lift; y += R * .3 * lift; }
+    const xr = x * Math.cos(rot) - z * Math.sin(rot), zr = x * Math.sin(rot) + z * Math.cos(rot);
+    return [cx + xr, cy + zr * st - y * ct, zr];
+  };
+  const order = [...Array(8).keys()].sort((a, b) => P2(Math.cos((a + .5) * TAU / 8) * R * .5, Math.sin((a + .5) * TAU / 8) * R * .5)[2] - P2(Math.cos((b + .5) * TAU / 8) * R * .5, Math.sin((b + .5) * TAU / 8) * R * .5)[2]);
+  // shadow
+  c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(cx, cy + TH * ct + R * .06, R * 1.04, R * 1.04 * st, 0, 0, TAU); c.fill();
+  const wedge = (s, r, y) => {
+    const a0 = s * TAU / 8 + .012, a1 = (s + 1) * TAU / 8 - .012;
+    c.beginPath();
+    const p0 = P2(0, 0, y, s); c.moveTo(p0[0], p0[1]);
+    for (let k = 0; k <= 10; k++) { const a = lerp(a0, a1, k / 10); const p = P2(Math.cos(a) * r, Math.sin(a) * r, y, s); c.lineTo(p[0], p[1]); }
+    c.closePath();
+  };
+  for (const s of order) {
+    for (let l = 0; l <= 4; l++) { wedge(s, R, -TH + TH * l / 4); c.fillStyle = l < 4 ? (l < 2 ? '#8E4E22' : '#B8692F') : '#E39A4F'; c.fill(); }
+    wedge(s, R * .86, 0.5); c.fillStyle = C.yellow; c.fill();
+    // melted cheese highlight
+    wedge(s, R * .5, 0.6); c.fillStyle = 'rgba(255,240,190,.18)'; c.fill();
+    for (const p of PEPS) {
+      if (p.s !== s) continue;
+      const q = P2(Math.cos(p.ang) * p.r * R, Math.sin(p.ang) * p.r * R, 1, s);
+      c.fillStyle = '#C93B3B'; c.beginPath(); c.ellipse(q[0], q[1], R * .095, R * .095 * st, 0, 0, TAU); c.fill();
+      c.fillStyle = C.signal; c.beginPath(); c.ellipse(q[0] - R * .01, q[1] - R * .01 * st, R * .075, R * .075 * st, 0, 0, TAU); c.fill();
     }
+  }
+}
+function drawCoin(cx, cy, r, spin, a = 1) {
+  const sx = Math.cos(spin), w = Math.abs(sx);
+  c.save(); c.globalAlpha *= a;
+  c.fillStyle = '#B98F22'; c.beginPath(); c.ellipse(cx + (sx < 0 ? -1 : 1) * r * .08 * Math.sin(spin), cy, r * Math.max(w, .06), r, 0, 0, TAU); c.fill();
+  c.fillStyle = C.yellow; c.beginPath(); c.ellipse(cx, cy, r * Math.max(w, .05), r, 0, 0, TAU); c.fill();
+  c.strokeStyle = 'rgba(12,17,23,.25)'; c.lineWidth = r * .07; c.beginPath(); c.ellipse(cx, cy, r * .8 * Math.max(w, .05), r * .8, 0, 0, TAU); c.stroke();
+  if (w > .15) {
+    c.translate(cx, cy); c.scale(sx, 1);
+    c.font = ARCH(900, r * 1.15); c.textAlign = 'center'; c.fillStyle = C.ink; c.fillText('B', 0, r * .4);
+    c.fillRect(-r * .2, -r * .62, r * .1, r * .2); c.fillRect(r * .02, -r * .62, r * .1, r * .2);
+    c.fillRect(-r * .2, r * .42, r * .1, r * .2); c.fillRect(r * .02, r * .42, r * .1, r * .2);
+    c.textAlign = 'left';
+  }
+  c.restore();
+}
+
+// ================================================================ act 01 — the hook (0–4 s)
+function act1(t) {
+  const dive = prog(t, 3.55, 4.05, ease.inExpo);
+  const A = 1 - dive;
+  c.save(); c.translate(W / 2, H * .55); c.scale(1 + dive * 1.5, 1 + dive * 1.5); c.translate(-W / 2, -H * .55);
+  c.globalAlpha = A;
+  // the date, typed
+  const date = 'MAY 22, 2010';
+  const nd = clamp(Math.floor((t - .5) / .04) + 1, 0, date.length);
+  if (nd > 0) mono(date.slice(0, nd), W / 2, 430, { px: 34, col: C.ash, align: 'center', ls: 8, wght: 500 });
+  c.globalAlpha = A;
+  const slam = (str, at, y, px, col, wght = 900, stretch = 'normal') => {
+    if (t < at) return;
+    const k = prog(t, at, at + .22, ease.outExpo), s = 1 + .5 * (1 - k);
+    c.save(); c.translate(W / 2, y); c.scale(s, s);
+    c.font = ARCH(wght, px, stretch); c.textAlign = 'center'; c.fillStyle = col; c.fillText(str, 0, px * .35);
+    c.restore();
+  };
+  slam('Someone paid', 1.0, 560, 100, C.bone, 800);
+  slam('10,000 BTC', 1.5, 730, 168, C.yellow, 900, 'semi-condensed');
+  if (t >= 1.5) drawCoin(W / 2, 300, 60 * prog(t, 1.5, 1.7, ease.outBack), t * 4, A);
+  slam('for 2 pizzas.', 2.0, 880, 100, C.bone, 800);
+  // two pizzas drop in, spinning
+  for (const [k, px] of [[0, 330], [1, 750]]) {
+    const at = 2.0 + k * .125;
+    if (t < at) continue;
+    const dy = (1 - spring(t - at, 2.2, .45)) * -700;
+    drawPizza(px, 1230 + dy, 190, t * .6 + k * 1.3, .95);
+  }
+  // the price tag stamps on
+  if (t >= 2.5) {
+    const k = prog(t, 2.5, 2.7, ease.outExpo), s = 1 + .8 * (1 - k);
+    push((x) => { x.translate(W / 2, 1105); x.rotate(-.12); x.scale(s, s); });
+    both((ctx, glow) => { roundRect(ctx, -150, -70, 300, 140, 22); ctx.fillStyle = glow ? rgba(C.signal, .5) : C.signal; ctx.fill(); });
+    c.font = ARCH(900, 100); c.textAlign = 'center'; c.fillStyle = C.bone; c.fillText('$41', 0, 36); c.textAlign = 'left';
     pop();
   }
-  // a sub-line types itself in, word by word on the 8ths
-  const sub = ['26', 'years.', 'One', 'chart.'];
-  c.font = SERIF(64);
-  let sx = W / 2 - c.measureText(sub.join(' ')).width / 2;
-  sub.forEach((w, i) => {
-    const at = 2.0 + i * .125, a = prog(t, at, at + .2, ease.outExpo);
-    c.fillStyle = rgba(i === 3 ? C.signal : C.bone, a * (1 - lift));
-    c.fillText(w, sx, 1380 + (1 - a) * 30 - lift * 900);
-    sx += c.measureText(w + ' ').width;
+  // the question
+  const words = ['What', 'are', 'they', 'worth', 'today?'];
+  c.font = SERIF(78);
+  let x = W / 2 - c.measureText(words.join(' ')).width / 2;
+  words.forEach((w, i) => {
+    const at = 3.0 + i * .0625, k = prog(t, at, at + .2, ease.outExpo);
+    c.fillStyle = rgba(i === 4 ? C.yellow : C.bone, k * A);
+    c.fillText(w, x, 1600 + (1 - k) * 30);
+    x += c.measureText(w + ' ').width;
   });
-  // the flash on every slam
-  return { shake: words.reduce((s, w) => s + pulse(t, w.at, .05) * 22, 0), flash: pulse(t, .5, .06) * .5 };
+  c.restore();
+  // ignition at the start, and the spark that leads the dive
+  if (t < .7) sparkHead(W / 2, H / 2, t, .5 + 1.2 * prog(t, 0, .4, ease.outExpo), 1 - prog(t, .5, .7));
+  burst(t, 1.0, W / 2, 560, { n: 30, seed: 3, speed: 900, life: .6 });
+  burst(t, 2.5, W / 2, 1105, { n: 36, seed: 4, speed: 1100, life: .7 });
+  const sh = [1.0, 1.5, 2.0, 2.5].reduce((s, a) => s + pulse(t, a, .05) * (a === 2.5 ? 26 : 16), 0);
+  return { shake: sh, flash: pulse(t, 1.5, .04) * .25 + pulse(t, 2.5, .04) * .3, zoom: 1 + .03 * pulse(t, 2.5, .12) };
 }
 
-// ================================================================ act 02 — the climb (3–16.5 s) + act 03 frame
-function header(t, a, m) {
-  // title and subtitle (persist through the climb)
-  const k = prog(t, 2.8, 3.3, ease.outExpo) * a;
-  if (k <= 0) return;
-  c.globalAlpha = k;
-  c.font = ARCH(800, 74); c.fillStyle = C.bone; c.textBaseline = 'alphabetic';
-  const tx = 90 + (1 - k) * -60;
-  c.fillText('Share price: NVIDIA', tx, 250);
-  const tw = c.measureText('Share price: NVIDIA').width;
-  both((ctx, glow) => { ctx.fillStyle = glow ? rgba(C.signal, .8) : C.signal; ctx.fillRect(tx + tw + 6, 238, 13, 13); });
-  mono('2000-01 → 2026-10 · USD / SHARE · SPLIT-ADJUSTED', 92, 300, { px: 22, col: C.ash });
-  c.globalAlpha = 1;
+// ================================================================ act 02 — the flight (4–22 s)
+function act2(t) {
+  const A = prog(t, 3.75, 4.15, ease.outCubic) * (1 - prog(t, 21.85, 22.0));
+  if (A <= 0) return {};
+  const cam = camAt(t);
+  const hi = idxAt(Math.min(t, T2B));
+  const i0 = t >= T2B ? 0 : Math.max(0, Math.floor((cam.pos.x - 600) / SXW)); // points behind the camera are not drawn
+  c.globalAlpha = A; g.globalAlpha = A;
+  const xFar = t >= T2B ? Xw(LAST) + 600 : cam.pos.x + 7000;
 
-  // live value: fixed digit cells so the number doesn't wobble while it rolls
-  const v = priceAt(m);
-  const txt = fmtUSD(v);
-  const px = 172, kick = pulse(t, MILESTONES.reduce((b, ms) => (t >= ms.t ? ms.t : b), -9), .12);
-  c.font = ARCH(900, px);
-  const cell = c.measureText('0').width;
-  let x = 90;
-  const y = 520;
-  both((ctx, glow) => {
-    ctx.font = ARCH(900, px); ctx.textBaseline = 'alphabetic';
-    ctx.globalAlpha = k;
-    ctx.fillStyle = glow ? rgba(C.signal, .32 + .5 * kick) : C.signal;
-    let xx = x;
-    for (const ch of txt) {
-      const w = /[0-9]/.test(ch) ? cell : ctx.measureText(ch).width;
-      ctx.fillText(ch, xx + (/[0-9]/.test(ch) ? (cell - ctx.measureText(ch).width) / 2 : 0), y - kick * 14);
-      xx += w;
+  // dust motes for parallax
+  const tile = 2400;
+  for (let k = 0; k < 240; k++) {
+    const bx = hash(k, 1) * tile, by = hash(k, 2) * (YMAX + 900) - 200, bz = (hash(k, 3) - .5) * 2600;
+    const rep = Math.floor((cam.pos.x - bx + 400) / tile);
+    for (let r = rep; r <= rep + 3; r++) {
+      const q = proj(cam, v3(bx + r * tile, by, bz));
+      if (q.z < NEAR * 4 || q.x < -20 || q.x > W + 20 || q.y < -20 || q.y > H + 20) continue;
+      const s = clamp(cam.f / q.z * 3.2, .6, 5), al = fogA(q.z) * .5;
+      c.fillStyle = rgba(hash(k, 4) < .2 ? C.yellow : C.bone, al * (.3 + .5 * hash(k, 5)));
+      c.fillRect(q.x - s / 2, q.y - s / 2, s, s);
     }
-    ctx.globalAlpha = 1;
-  });
-  // date + change
-  c.globalAlpha = k;
-  mono('NVIDIA · CLOSE', 92, 330 + 44, { px: 22, col: C.signal, wght: 500 });
-  c.font = MONO(54, 500); c.fillStyle = C.bone; c.textAlign = 'right';
-  c.fillText(monthLabel(m), W - 90, 520);
-  c.textAlign = 'left';
-  const chg = (v / P[0] - 1) * 100;
-  mono(`${chg >= 0 ? '+' : '−'}${fmtInt(Math.abs(chg))}% SINCE JAN 2000`, W - 90, 575, { px: 22, col: chg >= 0 ? C.ember : C.ash, align: 'right' });
-  c.globalAlpha = 1;
-}
-
-function chart(t, a, m, ym) {
-  if (a <= 0) return;
-  const reveal = prog(t, 2.9, 3.6, ease.outExpo);
-  c.globalAlpha = a;
-
-  // context bands (they wipe open as the playhead crosses them)
-  for (const e of EVENTS) {
-    if (m < e.m0) continue;
-    const x0 = xOf(e.m0), x1 = xOf(Math.min(m, e.m1));
-    c.fillStyle = rgba(e.hot ? C.signal : C.bone, e.hot ? .07 : .045);
-    c.fillRect(x0, CY1, Math.max(1, x1 - x0), CY0 - CY1);
-    c.strokeStyle = rgba(e.hot ? C.signal : C.bone, .3); c.lineWidth = 1; c.setLineDash([3, 6]);
-    c.beginPath(); c.moveTo(x0, CY1); c.lineTo(x0, CY0); c.stroke(); c.setLineDash([]);
-    // the label stamps in: scale-down slam, then holds
-    const age = (m - e.m0) / 8; // in "months/8" — stamps over ~8 months of playhead
-    const st = clamp(age);
-    const s = 1 + .6 * (1 - ease.outExpo(st));
-    c.save();
-    c.translate(x0 + 8, CY0 - 74 - e.row * 46);
-    c.scale(s, s);
-    c.font = MONO(19, 600); c.letterSpacing = '2px';
-    const lw = c.measureText(e.name).width + 18;
-    c.fillStyle = e.hot ? C.signal : rgba(C.ink2, .92);
-    c.fillRect(0, -26, lw, 36);
-    c.strokeStyle = rgba(e.hot ? C.signal : C.bone, .45); c.strokeRect(0, -26, lw, 36);
-    c.fillStyle = e.hot ? C.ink : C[e.col]; c.globalAlpha = a * st;
-    c.fillText(e.name, 9, -1);
-    c.letterSpacing = '0px';
-    c.restore();
-    c.globalAlpha = a;
+  }
+  // floor grid
+  c.lineWidth = 1.2;
+  c.strokeStyle = rgba(C.bone, .06);
+  c.beginPath();
+  for (let z = -1500; z <= 1500; z += 150) seg3(c, cam, v3(Math.max(-300, cam.pos.x - 800), 0, z), v3(xFar, 0, z));
+  c.stroke();
+  // years on the floor
+  for (let y = 2011; y <= 2026; y++) {
+    const i = idxOfDay(dayOfDate(y, 1, 1));
+    const x = Xw(i);
+    if (x < cam.pos.x - 900 || x > xFar) continue;
+    const lit = i <= hi;
+    c.strokeStyle = rgba(lit ? C.bone : C.graphite, lit ? .22 : .12); c.lineWidth = 1.5;
+    c.beginPath(); seg3(c, cam, v3(x, 0, -1500), v3(x, 0, 1500)); c.stroke();
+    text3(cam, v3(x + 20, 0, 520), String(y), 110, lit ? C.bone : C.graphite, { font: (s) => ARCH(900, s), align: 'left', a: lit ? .5 : .25 });
+  }
+  // value levels on the back wall: $100 … $1B
+  for (let e = 2; e <= 9; e++) {
+    const y = Yw(e), d = DECADES.find((q) => q.e === e);
+    const hot = d ? pulse(t, d.t, .3) : 0, passed = d && t >= d.t;
+    c.strokeStyle = hot > .02 ? rgba(C.yellow, .25 + .75 * hot) : rgba(C.bone, passed ? .14 : .07); c.lineWidth = 1.5 + 2 * hot;
+    c.beginPath(); seg3(c, cam, v3(Math.max(-300, cam.pos.x - 800), y, -DEPTH - 260), v3(xFar, y, -DEPTH - 260)); c.stroke();
+    const lab = ['$100', '$1K', '$10K', '$100K', '$1M', '$10M', '$100M', '$1B'][e - 2];
+    const near2 = t >= T2B ? 1 : clamp(1.6 - Math.abs(e - lvsAt(hi)) / 1.6);
+    if (near2 <= 0) continue;
+    const lx = t >= T2B ? Xw(LAST) + 260 : Math.max(Xw(hi) + 1700, 300);
+    text3(cam, v3(lx, y + 18, -DEPTH - 260), lab, 80, hot > .02 ? C.yellow : C.ash, { font: (s) => MONO(s, 600), a: (passed ? .9 : .45) * near2 });
   }
 
-  // grid: 1-2-5 levels, finer levels fade as the scale grows
-  const steps = [];
-  for (let e = -2; e <= 3; e++) for (const k of [1, 2, 5]) steps.push(k * 10 ** e);
-  const chartH = CY0 - CY1;
-  const alphaOf = (s) => prog(s / ym * chartH, 60, 130);
-  const fine = steps.find((s) => s / ym * chartH >= 60);
-  for (let k = 1; k * fine <= ym * 1.001; k++) {
-    const v = +(k * fine).toPrecision(6);
-    let al = 0;
-    for (const s of steps) if (s >= fine && Math.abs(v / s - Math.round(v / s)) < 1e-6) al = Math.max(al, alphaOf(s));
-    if (al <= .01) continue;
-    const y = yOf(v, ym);
-    c.strokeStyle = rgba(C.bone, .1 * al * reveal); c.lineWidth = 1;
-    c.beginPath(); c.moveTo(CX0, y); c.lineTo(lerp(CX0, CX1, reveal), y); c.stroke();
-    mono('$' + (v >= 1 ? (Number.isInteger(v) ? v : v.toFixed(1)) : v.toFixed(2)), CX0 - 16, y + 7, { px: 20, col: C.ash, a: al * reveal, align: 'right', ls: 0 });
+  // the ribbon: curtain to the floor, a top surface with depth, a glowing front edge
+  const top = [], back = [];
+  const step = t >= T2B ? 2 : 1;
+  for (let i = i0; i <= hi; i += step) { top.push(v3(Xw(i), Yw(LV[i]), 0)); }
+  const hiF = Math.min(hi, LAST);
+  top.push(v3(Xw(hiF), Yw(lvAt(hiF)), 0));
+  const P = [], PB = [], PF = [];
+  for (const p of top) {
+    const a = proj(cam, p), b = proj(cam, v3(p.x, p.y, -DEPTH)), f0 = proj(cam, v3(p.x, 0, 0));
+    if (a.z > NEAR && b.z > NEAR && f0.z > NEAR) { P.push(a); PB.push(b); PF.push(f0); }
   }
-  // axes
-  c.strokeStyle = rgba(C.bone, .85 * reveal); c.lineWidth = 2;
-  c.beginPath(); c.moveTo(CX0, CY0); c.lineTo(lerp(CX0, CX1 + 20, reveal), CY0); c.stroke();
-  mono('$0', CX0 - 16, CY0 + 7, { px: 20, col: C.ash, a: reveal, align: 'right', ls: 0 });
-  // years
-  for (let y = 2000; y <= 2025; y += 5) {
-    const mm = (y - 2000) * 12, x = xOf(mm), lit = m >= mm;
-    c.strokeStyle = rgba(C.bone, .6 * reveal); c.lineWidth = 1.5;
-    c.beginPath(); c.moveTo(x, CY0); c.lineTo(x, CY0 + 12); c.stroke();
-    mono(String(y), x, CY0 + 46, { px: 22, col: lit ? C.bone : C.graphite, a: reveal, align: 'center', ls: 0 });
-  }
-
-  // the price line: hatched area, glowing stroke
-  const N = Math.floor(m);
-  const pts = [];
-  for (let i = 0; i <= N; i++) pts.push([xOf(i), yOf(P[i], ym)]);
-  pts.push([xOf(m), yOf(priceAt(m), ym)]);
-  if (pts.length > 1) {
-    const gr = c.createLinearGradient(0, CY1, 0, CY0);
-    gr.addColorStop(0, rgba(C.signal, .32)); gr.addColorStop(1, rgba(C.signal, 0));
+  if (P.length > 1 && PF.length === P.length) {
+    // curtain
+    const gr = c.createLinearGradient(0, Math.min(...P.map((q) => q.y)), 0, Math.max(...PF.map((q) => q.y)));
+    gr.addColorStop(0, rgba(C.signal, .38)); gr.addColorStop(1, rgba(C.signal, .02));
     c.fillStyle = gr;
-    c.beginPath(); c.moveTo(pts[0][0], CY0);
-    for (const p of pts) c.lineTo(p[0], p[1]);
-    c.lineTo(pts[pts.length - 1][0], CY0); c.closePath(); c.fill();
-    // engraving: vertical hairlines under the curve, every 6 px
-    c.strokeStyle = rgba(C.signal, .22); c.lineWidth = 1.2;
-    c.beginPath();
-    for (let x = CX0 + 3; x < pts[pts.length - 1][0]; x += 6) {
-      const mm = (x - CX0) / (CX1 - CX0) * M_END;
-      const y = yOf(priceAt(mm), ym);
-      if (CY0 - y > 3) { c.moveTo(x, y + 4); c.lineTo(x, CY0); }
+    c.beginPath(); P.forEach((q, k) => (k ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y)));
+    for (let k = PF.length - 1; k >= 0; k--) c.lineTo(PF[k].x, PF[k].y);
+    c.closePath(); c.fill();
+    // drop lines (engraving)
+    c.strokeStyle = rgba(C.signal, .16); c.lineWidth = 1;
+    c.beginPath(); for (let k = 0; k < P.length; k += 3) { c.moveTo(P[k].x, P[k].y); c.lineTo(PF[k].x, PF[k].y); } c.stroke();
+  }
+  if (P.length > 1 && PB.length === P.length) {
+    // top surface, shaded by slope (rising faces catch the light)
+    for (let k = 1; k < P.length; k++) {
+      const rise = clamp((P[k - 1].y - P[k].y) / 30 * .5 + .5);
+      c.fillStyle = `rgba(255,${Math.round(120 + 80 * rise)},${Math.round(110 + 70 * rise)},${.35 + .4 * rise})`;
+      c.beginPath(); c.moveTo(P[k - 1].x, P[k - 1].y); c.lineTo(P[k].x, P[k].y); c.lineTo(PB[k].x, PB[k].y); c.lineTo(PB[k - 1].x, PB[k - 1].y); c.closePath(); c.fill();
     }
-    c.stroke();
+    c.strokeStyle = rgba(C.ember, .5); c.lineWidth = 1.2;
+    c.beginPath(); PB.forEach((q, k) => (k ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.stroke();
     both((ctx, glow) => {
-      ctx.globalAlpha = a;
-      ctx.strokeStyle = glow ? rgba(C.signal, .95) : C.signal;
-      ctx.lineWidth = glow ? 9 : 4.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      ctx.beginPath();
-      pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
-      ctx.stroke();
+      ctx.strokeStyle = glow ? rgba(C.signal, .9) : '#FF8A80'; ctx.lineWidth = glow ? 8 : 3.5; ctx.lineJoin = 'round';
+      ctx.beginPath(); P.forEach((q, k) => (k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke();
+    });
+  }
+
+  // events: tags on posts above the curve, they stamp in as the head passes
+  for (const e of EVENTS) {
+    if (t < e.t) continue;
+    const k = prog(t, e.t, e.t + .3, ease.outExpo);
+    const base = v3(Xw(e.i), Yw(LV[e.i]), 0), topP = v3(Xw(e.i), Yw(LV[e.i]) + 260 * k, 0);
+    c.strokeStyle = rgba(C[e.col], .8); c.lineWidth = 2; c.beginPath(); seg3(c, cam, base, topP); c.stroke();
+    const q = proj(cam, topP);
+    if (q.z > NEAR * 2) {
+      const s = clamp(cam.f / q.z, .15, 1.6) * (1 + .5 * (1 - k)), al = fogA(q.z);
+      c.save(); c.translate(q.x, q.y); c.scale(s, s); c.globalAlpha = A * al;
+      c.font = MONO(30, 600); c.letterSpacing = '3px';
+      const w = c.measureText(e.name).width + 30;
+      c.fillStyle = rgba(C.ink2, .92); c.fillRect(-w / 2, -50, w, 50);
+      c.strokeStyle = C[e.col]; c.lineWidth = 2; c.strokeRect(-w / 2, -50, w, 50);
+      c.fillStyle = C[e.col]; c.textAlign = 'center'; c.fillText(e.name, 0, -15); c.textAlign = 'left'; c.letterSpacing = '0px';
+      c.restore();
+    }
+  }
+  // the peak
+  if (t >= PEAK_T) {
+    const k = prog(t, PEAK_T, PEAK_T + .3, ease.outExpo);
+    text3(cam, v3(Xw(PEAK_I) - 60, Yw(LV[PEAK_I]) + 120 + 60 * k, 0), 'PEAK ' + fmtMoney(USD[PEAK_I]), 90, C.yellow, { font: (s) => ARCH(900, Math.min(s, 90)), align: 'right', a: k, glow: true });
+  }
+
+  // gates: rings at each new order of magnitude ($1M, $10M, $100M, $1B) that the spark flies through
+  for (const gt of GATES) {
+    const gx = Xw(gt.i), gy = Yw(gt.e), R0 = 280;
+    if (gx < cam.pos.x - 200 || gx > xFar) continue;
+    const passed = t >= gt.t, hot = pulse(t, gt.t, .25);
+    const near = prog(t, gt.t - 1.2, gt.t, ease.inQuad);
+    const ring = (R, col, a, wd) => {
+      const pts = [];
+      for (let k = 0; k <= 64; k++) { const a2 = k / 64 * TAU; pts.push(proj(cam, v3(gx, gy + Math.sin(a2) * R, -DEPTH / 2 + Math.cos(a2) * R))); }
+      if (pts.some((q) => q.z < NEAR)) return;
+      const al = a * fogA(pts[0].z);
+      both((ctx, glow) => {
+        ctx.strokeStyle = rgba(col, al * (glow ? .9 : 1)); ctx.lineWidth = wd * (glow ? 2 : 1);
+        ctx.beginPath(); pts.forEach((q, k) => (k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke();
+      });
+    };
+    ring(R0, C.yellow, passed ? .35 + .65 * hot : .3 + .5 * near, 3 + 4 * hot);
+    if (passed && t - gt.t < .8) ring(R0 * (1 + 3 * prog(t, gt.t, gt.t + .8, ease.outCubic)), C.yellow, 1 - prog(t, gt.t, gt.t + .8), 3);
+    const lq = proj(cam, v3(gx, gy + R0 + 80, -DEPTH / 2));
+    const closeFade = clamp((lq.z - 1400) / 900);
+    text3(cam, v3(gx, gy + R0 + 80, -DEPTH / 2), gt.label, 110, passed ? C.yellow : C.bone, { font: (s) => ARCH(900, Math.min(s, 150), 'semi-condensed'), a: (passed ? 1 : .35 + .5 * near) * closeFade, glow: passed });
+  }
+
+  // the spark at the head
+  if (t < T2B + .3) {
+    const hp = proj(cam, v3(Xw(hi), Yw(lvAt(hi)), 0));
+    const headAt = (tb) => (tb >= T2A ? proj(cam, v3(Xw(idxAt(tb)), Yw(lvAt(idxAt(tb))), 0)) : null);
+    sparkParticles(t, headAt, { seed: 11, rate: 90, speed: 300 });
+    sparkHead(hp.x, hp.y, t, 1.3, 1 - prog(t, T2B, T2B + .3));
+    for (const gt of GATES) burst(t, gt.t, hp.x, hp.y, { n: 60, speed: 1400, seed: gt.e * 7, life: .8 });
+  }
+  c.globalAlpha = 1; g.globalAlpha = 1;
+
+  // HUD: what the pizzas are worth right now
+  const hk = prog(t, 4.0, 4.4, ease.outExpo) * (1 - prog(t, 21.7, 22.0));
+  if (hk > 0) {
+    c.globalAlpha = hk;
+    const shade = c.createLinearGradient(0, 0, 0, 520);
+    shade.addColorStop(0, 'rgba(9,13,18,.92)'); shade.addColorStop(1, 'rgba(9,13,18,0)');
+    c.fillStyle = shade; c.fillRect(0, 0, W, 520);
+    mono('10,000 BTC · 2 PIZZAS · BOUGHT MAY 22, 2010', 92, 150, { px: 22, col: C.ash, ls: 3 });
+    const v = valAt(hi), txt = fmtMoney(v);
+    const kick = DECADES.reduce((s, d) => s + pulse(t, d.t, .12), 0);
+    both((ctx, glow) => {
+      ctx.globalAlpha = hk;
+      ctx.font = ARCH(900, 150); ctx.textBaseline = 'alphabetic';
+      const cell = ctx.measureText('0').width;
+      ctx.fillStyle = glow ? rgba(C.signal, .3 + .5 * kick) : C.signal;
+      let x = 88;
+      for (const ch of txt) {
+        const isD = /[0-9]/.test(ch), w = isD ? cell : ctx.measureText(ch).width;
+        ctx.fillText(ch, x + (isD ? (cell - ctx.measureText(ch).width) / 2 : 0), 320 - kick * 10);
+        x += w;
+      }
       ctx.globalAlpha = 1;
     });
+    c.font = MONO(40, 500); c.fillStyle = C.bone; c.fillText(fmtDate(dayAt(hi)), 92, 385);
+    mono(`1 BTC = $${fmtInt(v / 1e4 >= 1 ? v / 1e4 : 0)}${v / 1e4 < 1 ? (v / 1e4).toFixed(2).slice(1) : ''}`, W - 90, 385, { px: 26, col: C.ash, align: 'right', ls: 1 });
+    // timeline scrubber
+    const tx0 = 92, tx1 = W - 90, ty = 430;
+    c.fillStyle = rgba(C.bone, .15); c.fillRect(tx0, ty, tx1 - tx0, 3);
+    const u = hi / LAST;
+    c.fillStyle = C.yellow; c.fillRect(tx0, ty, (tx1 - tx0) * u, 3);
+    for (const d of DECADES) { if (t >= d.t) { c.fillStyle = C.yellow; c.fillRect(tx0 + (tx1 - tx0) * d.i / LAST - 1, ty - 8, 3, 19); } }
+    mono('2010', tx0, ty + 36, { px: 18, col: C.graphite, ls: 1 });
+    mono('2026', tx1, ty + 36, { px: 18, col: C.graphite, ls: 1, align: 'right' });
+    // ×10 pop on each new order of magnitude
+    for (const d of DECADES.filter((d) => t >= d.t).slice(-1)) {
+      const k = prog(t, d.t, d.t + .7);
+      if (k <= 0 || k >= 1) continue;
+      c.globalAlpha = hk * (1 - k);
+      c.font = ARCH(900, 64); c.fillStyle = C.yellow; c.textAlign = 'right';
+      c.fillText('×10', W - 90, 300 - k * 60); c.textAlign = 'left';
+    }
+    c.globalAlpha = 1;
   }
-
-  // milestone rules: flash orange across the chart when the price first crosses them, then settle
-  for (const ms of MILESTONES) {
-    if (t < ms.t) continue;
-    const k = pulse(t, ms.t, .25), y = yOf(ms.v, ym);
-    if (y < CY1 - 2) continue;
-    c.strokeStyle = rgba(C.signal, .25 + .75 * k); c.lineWidth = 1 + 2 * k;
-    c.setLineDash([10, 8]); c.beginPath(); c.moveTo(CX0, y); c.lineTo(CX1, y); c.stroke(); c.setLineDash([]);
-  }
-
-  // spark head + value tag (only while it is drawing)
-  if (t >= T_CLIMB0 && a > .5) {
-    const hx = xOf(m), hy = yOf(priceAt(m), ym);
-    const headAt = (tb) => (tb >= T_CLIMB0 ? { x: xOf(monthAt(tb)), y: yOf(priceAt(monthAt(tb)), ymaxAt(tb)) } : null);
-    sparkParticles(t, headAt, { seed: 7, rate: 80 });
-    sparkHead(hx, hy, t, 1.15);
-    c.font = ARCH(800, 34); c.fillStyle = C.signal;
-    c.fillText(fmtUSD(priceAt(m)), Math.min(hx + 28, W - 200), hy - 22);
-  }
-  c.globalAlpha = 1;
+  const gk = GATES.reduce((s, gt) => s + pulse(t, gt.t, .08), 0);
+  return { shake: gk * 26 + DECADES.reduce((s, d) => s + pulse(t, d.t, .05), 0) * 6, flash: gk * .3, zoom: 1 };
 }
 
-function milestoneChips(t, a) {
-  // chips under the chart: each slams in when its milestone is crossed
-  c.globalAlpha = a;
-  mono('MILESTONES', 92, 1556, { px: 20, col: C.graphite });
-  MILESTONES.forEach((ms, i) => {
-    const x = 90 + (i % 3) * 305, y = 1580 + Math.floor(i / 3) * 106;
-    const k = prog(t, ms.t, ms.t + .25, ease.outExpo);
-    c.strokeStyle = rgba(C.bone, .18); c.lineWidth = 1;
-    c.strokeRect(x, y, 285, 92);
-    if (k <= 0) { mono(`$${ms.v}`, x + 18, y + 50, { px: 30, col: C.graphite, a: .5 }); return; }
-    const s = 1 + .35 * (1 - k);
-    c.save(); c.translate(x + 142, y + 46); c.scale(s, s); c.translate(-x - 142, -y - 46);
-    const hot = pulse(t, ms.t, .35);
-    c.fillStyle = hot > .05 ? rgba(C.yellow, .25 + .75 * hot) : rgba(C.ink2, 1);
-    c.fillRect(x, y, 285, 92);
-    c.font = ARCH(900, 42); c.fillStyle = hot > .5 ? C.ink : C.bone;
-    c.fillText(`$${ms.v}`, x + 18, y + 50);
-    mono(`FIRST · ${monthLabel(ms.m)}`, x + 19, y + 78, { px: 17, col: hot > .5 ? C.ink : C.ash, ls: 1 });
-    c.restore();
-  });
-  c.globalAlpha = 1;
-}
-
-// ================================================================ act 03 — the payoff (16.5–20 s)
+// ================================================================ act 03 — the payoff (22–26 s)
 function act3(t) {
-  const v = P[M_END];
-  const exit = prog(t, 19.5, 20.0, ease.inExpo);
-  // the "current value" card slams in on the 17.0 downbeat
-  const s1 = prog(t, 17.0, 17.3, ease.outExpo);
-  if (t >= 17.0) {
-    const s = (1 + .45 * (1 - s1)) * (1 - exit);
-    c.save(); c.translate(W / 2, 820); c.scale(s, s); c.rotate((1 - s1) * -.04);
-    roundRect(c, -450, -230, 900, 430, 36);
-    c.fillStyle = C.yellow; c.fill();
-    c.textAlign = 'center'; c.fillStyle = C.ink;
-    c.font = ARCH(600, 40); c.fillText('Current value', 0, -150);
-    c.font = ARCH(900, 230, 'semi-condensed'); c.fillText(fmtUSD(v), 0, 50);
-    c.font = ARCH(500, 32); c.fillText('USD / share · 2026-10', 0, 135);
-    c.textAlign = 'left';
-    c.restore();
+  const now = USD[LAST], mult = now / 41, perSlice = now / 16;
+  const exit = prog(t, 25.5, 26.0, ease.inExpo);
+  const A = 1 - exit;
+  c.save(); c.globalAlpha = A;
+  // the pizza, one slice lifting out
+  const pk = prog(t, 22.0, 22.35, ease.outBack);
+  drawPizza(W / 2, 560 - (1 - pk) * 300, 250 * pk, t * .35, .9, { lift: prog(t, 23.0, 23.4, ease.outBack), liftIdx: 1 });
+  // the card
+  const k1 = prog(t, 22.0, 22.3, ease.outExpo);
+  c.save(); c.translate(W / 2, 1010); c.scale(1 + .4 * (1 - k1), 1 + .4 * (1 - k1)); c.rotate((1 - k1) * .04);
+  roundRect(c, -460, -190, 920, 380, 36); c.fillStyle = C.yellow; c.fill();
+  c.textAlign = 'center'; c.fillStyle = C.ink;
+  c.font = ARCH(600, 40); c.fillText('The 2 pizzas today', 0, -115);
+  c.font = ARCH(900, 200, 'semi-condensed'); c.fillText('$' + (now / 1e6).toFixed(1) + 'M', 0, 60);
+  c.font = ARCH(500, 30); c.fillText('MAY 22, 2026 · 1 BTC = $' + fmtInt(now / 1e4), 0, 140);
+  c.restore(); c.textAlign = 'left';
+  // per slice
+  const k2 = prog(t, 23.0, 23.3, ease.outExpo);
+  if (k2 > 0) {
+    push((x) => { x.translate(W / 2, 1335); x.scale(1 + .4 * (1 - k2), 1 + .4 * (1 - k2)); });
+    c.font = ARCH(900, 86); c.textAlign = 'center';
+    const a = '$' + (perSlice / 1e6).toFixed(1) + 'M', b = ' per slice';
+    const wa = c.measureText(a).width; c.font = ARCH(600, 56); const wb = c.measureText(b).width;
+    both((ctx, glow) => { ctx.globalAlpha = A; ctx.font = ARCH(900, 86); ctx.textAlign = 'left'; ctx.fillStyle = glow ? rgba(C.signal, .6) : C.signal; ctx.fillText(a, -(wa + wb) / 2, 30); ctx.globalAlpha = 1; });
+    c.font = ARCH(600, 56); c.textAlign = 'left'; c.fillStyle = C.bone; c.fillText(b, -(wa + wb) / 2 + wa, 30);
+    pop();
   }
-  // ×2,389 and the $1,000 line, one per beat
-  const mult = v / P[0];
-  const r1 = prog(t, 17.5, 17.8, ease.outExpo), r2 = prog(t, 18.0, 18.3, ease.outExpo), r3 = prog(t, 18.5, 18.8, ease.outExpo);
-  c.globalAlpha = 1 - exit;
-  if (r1 > 0) {
-    c.save(); c.translate(W / 2, 1250); c.scale(1 + .4 * (1 - r1), 1 + .4 * (1 - r1));
-    c.font = ARCH(900, 150, 'expanded'); c.fillStyle = C.bone; c.textAlign = 'center';
-    c.fillText('×' + fmtInt(mult * prog(t, 17.5, 18.4, ease.outExpo)), 0, 50);
+  // the multiplier, counting
+  const k3 = prog(t, 23.5, 23.8, ease.outExpo);
+  if (k3 > 0) {
+    c.save(); c.translate(W / 2, 1500); c.scale(1 + .4 * (1 - k3), 1 + .4 * (1 - k3));
+    c.font = ARCH(900, 120, 'expanded'); c.fillStyle = C.bone; c.textAlign = 'center';
+    c.fillText('×' + (mult / 1e6 * prog(t, 23.5, 24.4, ease.outExpo)).toFixed(1) + ' million', 0, 40);
     c.restore(); c.textAlign = 'left';
+    mono('SINCE PIZZA DAY, 2010', W / 2, 1585, { px: 26, col: C.ash, align: 'center', ls: 5, a: k3 * A });
   }
-  if (r2 > 0) mono('SINCE JANUARY 2000', W / 2, 1360 + (1 - r2) * 30, { px: 26, col: C.ash, a: r2, align: 'center', ls: 4 });
-  if (r3 > 0) {
-    c.font = SERIF(66); c.textAlign = 'center'; c.fillStyle = rgba(C.bone, r3);
-    c.fillText('$1,000 then is', W / 2, 1480 + (1 - r3) * 30);
-    both((ctx, glow) => {
-      ctx.globalAlpha = (1 - exit) * r3; ctx.textAlign = 'center';
-      ctx.font = SERIF(100, 500); ctx.fillStyle = glow ? rgba(C.signal, .7) : C.signal;
-      ctx.fillText('$' + (1000 * mult / 1e6).toFixed(2) + 'M', W / 2, 1595 + (1 - r3) * 40);
-      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
-    });
-  }
-  c.globalAlpha = 1;
-  burst(t, 17.0, W / 2, 820, { n: 70, speed: 1500, seed: 21, life: .9 });
-  // everything collapses into the spark, which rises to become the search caret
-  if (t >= 19.5) {
-    const k = prog(t, 19.5, 20.0, ease.inOutCubic);
-    sparkHead(W / 2, lerp(820, 760, k), t, 1.4 - .4 * k);
-  }
-  return { shake: pulse(t, 17.0, .07) * 30 + pulse(t, 17.5, .05) * 12, flash: pulse(t, 17.0, .04) * .5, zoom: 1 + .04 * pulse(t, 17.0, .15) };
+  const k4 = prog(t, 24.5, 24.8, ease.outExpo);
+  if (k4 > 0) mono(`PEAK · ${fmtMoney(USD[PEAK_I])} · ${fmtDate(DAYS[PEAK_I]).toUpperCase()}`, W / 2, 1680 + (1 - k4) * 20, { px: 30, col: C.yellow, align: 'center', ls: 4, wght: 600, a: k4 * A });
+  c.restore();
+  burst(t, 22.0, W / 2, 1010, { n: 70, speed: 1500, seed: 21, life: .9 });
+  burst(t, 23.0, W / 2 + 160, 520, { n: 30, speed: 900, seed: 22, life: .6 });
+  if (t >= 25.5) { const k = prog(t, 25.5, 26.0, ease.inOutCubic); sparkHead(W / 2, lerp(1010, 760, k), t, 1.4 - .4 * k); }
+  return { shake: pulse(t, 22.0, .07) * 30 + pulse(t, 23.0, .05) * 12 + pulse(t, 23.5, .05) * 12, flash: pulse(t, 22.0, .04) * .5, zoom: 1 + .04 * pulse(t, 22.0, .15) };
 }
 
-// ================================================================ act 04 — the search and the profile (20–30 s)
+// ================================================================ cues (for the soundtrack generator)
+window.CUES = () => ({
+  decades: DECADES.map((d) => ({ e: d.e, t: d.t })), gates: GATES.map((g) => g.t), events: EVENTS.map((e) => e.t), peak: PEAK_T,
+  T2A, T2B, T2END, T4, T_TYPE, T_KEY, n: QUERY.length, T_RES, T_TAP1, T_PROF, T_TAP2, T_END, DUR,
+});
+// ================================================================ act 04 — the search and the profile (26–36 s)
 const HANDLE = 'datamotionhq';
 const QUERY = '@' + HANDLE;
-const T_TYPE = 21.0, T_KEY = .125; // one character per 16th
+const T4 = 26.0; // act 04 starts here
+const T_TYPE = T4 + 1.0, T_KEY = .125; // one character per 16th
 const T_RES = T_TYPE + QUERY.length * T_KEY + .125; // results land on the 16th after the last key
-const T_TAP1 = 23.5, T_PROF = 24.0, T_TAP2 = 26.5, T_END = 27.5;
+const T_TAP1 = T4 + 3.5, T_PROF = T4 + 4.0, T_TAP2 = T4 + 6.5, T_END = T4 + 7.5;
 const BAR = { x: 80, y: 700, w: 920, h: 112 };
 const PROFILE = { name: 'Data Motion Hq', posts: 3, followers: 2, following: 0, bio: ['Making data worth watching.', 'Markets • Economics • History'] };
 
@@ -626,7 +881,7 @@ function rollNum(a, b, x, y, t, t0, { px = 60, wght = 800, dur = .3, hot = C.yel
 
 // the three posts on the grid, redrawn in their own style
 const POSTS = [
-  { title: ['Share price: NVIDIA.'], views: 11, card: 'Current value', lines: [{ col: 'signal', f: (u) => priceAt(u * M_END) / P[M_END] }], big: [['$238.9', 'signal']] },
+  { title: ['Share price: NVIDIA.'], views: 11, card: 'Current value', lines: [{ col: 'signal', f: (u) => (Math.exp(u * 8) - 1) / (Math.exp(8) - 1) + .015 * vnoise(u * 40, 9) }], big: [['$238.9', 'signal']] },
   { title: ['Consumer inflation across', '3 countries & regions.'], views: 43, card: 'Current spread', lines: [
     { col: 'yellow', f: (u) => .35 + .12 * vnoise(u * 22, 1) + .4 * Math.exp(-(((u - .85) / .05) ** 2)) },
     { col: 'blue', f: (u) => .3 + .12 * vnoise(u * 22, 2) + .3 * Math.exp(-(((u - .86) / .05) ** 2)) },
@@ -681,10 +936,10 @@ function postTile(p, x, y, w, h, t, t0) {
 }
 
 function act4(t) {
-  const lt = t - 20;
+  const lt = t - T4;
   const toProf = prog(t, T_PROF, T_PROF + .5, ease.inOutExpo); // search screen → profile
   const leave = prog(t, T_END - .3, T_END, ease.inExpo); // profile → end card
-  const outro = prog(t, 29.5, 30.0, ease.inCubic);
+  const outro = prog(t, DUR - .5, DUR, ease.inCubic);
 
   // ---------------- the search screen
   if (toProf < 1) {
@@ -694,14 +949,14 @@ function act4(t) {
     c.font = SERIF(88);
     let hx = 90;
     head.forEach((w, i) => {
-      const at = 20.25 + i * .125, k = prog(t, at, at + .25, ease.outExpo);
+      const at = T4 + .25 + i * .125, k = prog(t, at, at + .25, ease.outExpo);
       c.fillStyle = rgba(i === 2 ? C.yellow : C.bone, k);
       c.fillText(w, hx, 560 + (1 - k) * 40);
       hx += c.measureText(w + ' ').width;
     });
-    mono('INSTAGRAM  ·  SEARCH', 92, 420, { px: 22, col: C.ash, a: prog(t, 20, 20.3) });
+    mono('INSTAGRAM  ·  SEARCH', 92, 420, { px: 22, col: C.ash, a: prog(t, T4, T4 + .3) });
 
-    const grow = prog(t, 20.0, 20.5, ease.outExpo);
+    const grow = prog(t, T4, T4 + .5, ease.outExpo);
     const bw = BAR.w * grow, bx = W / 2 - bw / 2;
     roundRect(c, bx, BAR.y, bw, BAR.h, BAR.h / 2);
     c.fillStyle = C.ink3; c.fill();
@@ -910,38 +1165,19 @@ function renderScene(t) {
   view(c); view(g);
   c.fillStyle = BG; c.fillRect(0, 0, W, H);
 
-  // a faint blueprint grid behind everything, drifting slowly
-  c.strokeStyle = rgba(C.bone, .025); c.lineWidth = 1;
-  const off = (t * 12) % 90;
-  for (let x = -90 + off; x < W; x += 90) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
-  for (let y = -90 + off; y < H; y += 90) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
-
-  let post = { shake: 0, flash: 0, zoom: 1 };
-  if (t < 3.0) post = { ...post, ...act1(t) };
-  // the chart frame lives from 2.8 to 17.3 (it recedes under the payoff)
-  if (t >= 2.8 && t < 17.0) {
-    const recede = prog(t, 16.6, 17.0, ease.inCubic);
-    const m = t < T_CLIMB0 ? 0 : monthAt(t);
-    const ym = ymaxAt(Math.max(t, T_CLIMB0));
-    // milestone punches: the camera kicks on every crossing
-    const kick = MILESTONES.reduce((s, ms) => s + pulse(t, ms.t, .1), 0);
-    post.shake += kick * 14;
-    post.zoom *= 1 + .02 * kick;
-    withXf(() => {
-      header(t, 1 - recede, m);
-      chart(t, 1 - recede, m, ym);
-      milestoneChips(t, 1 - recede);
-    }, 0, recede * 120, 1 - recede * .12);
-  }
-  if (t >= 16.9 && t < 20.1) { const o = act3(t); post.shake += o.shake; post.flash += o.flash; post.zoom *= o.zoom; }
-  if (t >= 19.9) { const o = act4(t); post.shake += o.shake; post.flash += o.flash; post.zoom *= o.zoom; }
+  const post = { shake: 0, flash: 0, zoom: 1 };
+  const add = (o) => { if (!o) return; post.shake += o.shake || 0; post.flash += o.flash || 0; post.zoom *= o.zoom || 1; };
+  if (t < 4.1) add(act1(t));
+  if (t >= 3.7 && t < T2END) add(act2(t));
+  if (t >= T2END && t < T4 + .1) add(act3(t));
+  if (t >= T4 - .1) add(act4(t));
 
   // frame furniture
-  const frameIn = prog(t, 0, .6, ease.outExpo) * (1 - prog(t, 29.4, 30, ease.inExpo));
+  const frameIn = prog(t, 0, .6, ease.outExpo) * (1 - prog(t, DUR - .6, DUR, ease.inExpo));
   cropMarks(frameIn);
   c.globalAlpha = frameIn;
   mono('@DATAMOTIONHQ', W - 80, H - 76, { px: 20, col: C.ash, align: 'right', ls: 3 });
-  if (t < 20) mono('SOURCE: YAHOO FINANCE', 80, H - 76, { px: 20, col: C.graphite, ls: 3 });
+  if (t < T4) mono('DATA: COIN METRICS', 80, H - 76, { px: 20, col: C.graphite, ls: 3 });
   const b = Math.floor(t / BEAT) % 4;
   for (let i = 0; i < 4; i++) { c.fillStyle = rgba(i === b ? C.signal : C.bone, i === b ? 1 : .25); c.fillRect(80 + i * 18, 84, 10, 10); }
   c.globalAlpha = 1;
@@ -1020,7 +1256,7 @@ if (!EXPORT) {
   // The soundtrack is the clock while it plays (browsers only allow sound after a tap/click).
   const q = parseFloat(new URLSearchParams(location.search).get('t'));
   const probe = document.createElement('audio');
-  const audio = new Audio(probe.canPlayType('audio/mp4; codecs="mp4a.40.2"') ? 'audio/soundtrack.m4a' : 'audio/soundtrack.mp3');
+  const audio = new Audio(probe.canPlayType('audio/mp4; codecs="mp4a.40.2"') ? 'audio/pizza.m4a' : 'audio/pizza.mp3');
   audio.loop = true; audio.preload = 'auto';
   let time = isNaN(q) ? 0 : q, paused = !isNaN(q), last = performance.now(), sound = false;
   const hint = document.getElementById('sound');

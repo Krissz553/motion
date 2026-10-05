@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NVIDIA, in Motion</title>
+<meta name="description" content="26 years of NVIDIA's share price as a generative motion-graphics reel, by @datamotionhq.">
+<style>
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: block; src: url(fonts/archivo-var.woff2) format('woff2'); }
+  @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 400 500; font-display: block; src: url(fonts/cormorant-italic-400.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 300 400; font-display: block; src: url(fonts/plexmono-400.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: block; src: url(fonts/plexmono-500.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: block; src: url(fonts/plexmono-600.woff2) format('woff2'); }
+</style>
+<style>
+  :root { --ink: #0A0A0B; --bone: #EEE9DF; --graphite: #5E5B57; --signal: #FF4D12; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--bone); overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; gap: 32px; font: 400 12px/1.5 'IBM Plex Mono', monospace; }
+  canvas { display: block; height: min(100vh, calc(100vw * 16 / 9)); aspect-ratio: 9 / 16; cursor: pointer; }
+  aside { position: fixed; right: 20px; bottom: 16px; text-align: right; color: var(--graphite); letter-spacing: .06em; }
+  aside a { color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--graphite); }
+  aside a:hover { border-color: var(--signal); }
+  #sound {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+    padding: 14px 22px; border: 1px solid var(--signal); background: rgba(10,10,11,.85); color: var(--bone);
+    font: 500 14px/1 'IBM Plex Mono', monospace; letter-spacing: .2em; text-transform: uppercase; transition: opacity .4s;
+  }
+  body.export aside, body.export #sound { display: none; }
+  body.export canvas { height: auto; width: 1080px; }
+  @media (max-width: 700px) { aside { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="sound">tap for sound</div>
+<aside>
+  tap: sound on / restart · space pause · ← → seek<br>
+  <a href="nvidia-datamotion.mp4" download>download mp4</a> · <a href="index.html">bitcoin pizza</a> · <a href="reel.html">reel 01</a>
+</aside>
+<script>
+'use strict';
+// NVIDIA, in motion — a vertical (1080×1920) reel. Every frame is a pure function of time t.
+// 120 BPM; four acts: 01 the title slam, 02 the climb, 03 the payoff, 04 the search (@datamotionhq).
+
+// ================================================================ data
+// Monthly split-adjusted close, USD, 2000-01 … 2026-10 (322 months), traced from the source chart.
+const P = [
+  0.1, 0.13, 0.16, 0.19, 0.22, 0.28, 0.31, 0.31, 0.33, 0.32, 0.32, 0.32,
+  0.28, 0.3, 0.31, 0.32, 0.28, 0.26, 0.26, 0.26, 0.26, 0.24, 0.23, 0.2,
+  0.19, 0.18, 0.16, 0.17, 0.15, 0.15, 0.13, 0.11, 0.1, 0.1, 0.11, 0.12,
+  0.12, 0.12, 0.12, 0.14, 0.14, 0.15, 0.17, 0.16, 0.17, 0.2, 0.18, 0.18,
+  0.19, 0.18, 0.19, 0.19, 0.18, 0.19, 0.2, 0.21, 0.23, 0.22, 0.22, 0.2,
+  0.22, 0.22, 0.22, 0.22, 0.22, 0.24, 0.28, 0.26, 0.26, 0.29, 0.35, 0.38,
+  0.35, 0.32, 0.36, 0.36, 0.36, 0.41, 0.45, 0.46, 0.47, 0.48, 0.53, 0.54,
+  0.55, 0.55, 0.49, 0.54, 0.57, 0.58, 0.51, 0.5, 0.55, 0.5, 0.51, 0.57,
+  0.53, 0.61, 0.63, 0.62, 0.59, 0.58, 0.54, 0.54, 0.48, 0.44, 0.44, 0.41,
+  0.36, 0.37, 0.38, 0.33, 0.29, 0.28, 0.27, 0.26, 0.28, 0.25, 0.27, 0.24,
+  0.22, 0.23, 0.24, 0.24, 0.23, 0.22, 0.21, 0.22, 0.22, 0.23, 0.24, 0.24,
+  0.26, 0.27, 0.31, 0.31, 0.3, 0.29, 0.3, 0.32, 0.31, 0.31, 0.35, 0.28,
+  0.27, 0.28, 0.29, 0.3, 0.29, 0.31, 0.31, 0.3, 0.34, 0.34, 0.32, 0.32,
+  0.32, 0.33, 0.28, 0.3, 0.34, 0.32, 0.34, 0.38, 0.4, 0.44, 0.4, 0.4,
+  0.4, 0.42, 0.46, 0.39, 0.44, 0.41, 0.45, 0.42, 0.45, 0.5, 0.5, 0.51,
+  0.55, 0.56, 0.57, 0.64, 0.68, 0.66, 0.79, 0.71, 0.76, 0.75, 0.76, 0.81,
+  0.83, 0.87, 0.85, 0.86, 1.01, 1.05, 1.11, 1.16, 1.44, 1.67, 1.99, 2.0,
+  2.19, 2.23, 2.61, 3.06, 3.02, 3.55, 3.98, 4.07, 4.04, 4.63, 4.96, 5.27,
+  5.53, 5.69, 5.9, 6.0, 6.0, 6.32, 5.69, 5.3, 4.64, 4.18, 4.0, 4.4,
+  4.46, 4.26, 3.91, 4.02, 3.78, 3.99, 4.34, 4.9, 5.39, 5.71, 6.0, 6.44,
+  7.17, 7.76, 8.64, 11.12, 11.71, 12.44, 12.73, 12.88, 12.88, 12.88, 13.03, 13.91,
+  15.37, 16.69, 17.71, 19.32, 20.78, 23.86, 26.35, 26.64, 28.25, 26.93, 23.42, 22.69,
+  21.52, 19.47, 16.54, 15.81, 14.93, 14.05, 14.2, 15.66, 17.71, 20.05, 21.81, 26.93,
+  34.98, 37.18, 42.01, 45.23, 45.23, 44.64, 45.08, 50.94, 62.94, 69.38, 73.77, 91.04,
+  103.92, 105.09, 110.36, 119.73, 124.12, 128.81, 129.83, 129.24, 127.63, 121.49, 117.68, 125.59,
+  136.12, 143.59, 156.47, 174.18, 188.09, 188.67, 189.7, 189.55, 184.28, 185.6, 191.6, 192.92,
+  195.99, 207.41, 219.85, 220.43, 221.6, 232.0, 235.8, 239.02, 238.88, 238.9,
+];
+const M_END = P.length - 1;
+const runMax = P.reduce((a, v, i) => (a.push(Math.max(v, i ? a[i - 1] : v)), a), []);
+const priceAt = (m) => {
+  m = Math.max(0, Math.min(M_END, m));
+  const i = Math.floor(m), f = m - i;
+  return i >= M_END ? P[M_END] : P[i] + (P[i + 1] - P[i]) * f;
+};
+const monthLabel = (m) => {
+  const k = Math.floor(Math.max(0, Math.min(M_END, m)));
+  return `${2000 + Math.floor(k / 12)}-${String(k % 12 + 1).padStart(2, '0')}`;
+};
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// ================================================================ constants
+const W = 1080, H = 1920, BPM = 120, BEAT = 60 / BPM, DUR = 30;
+// the @datamotionhq look: deep navy, coral price lines, the brand yellow, and a few series colours
+const C = {
+  ink: '#0C1117', ink2: '#141B23', ink3: '#1E2731', graphite: '#4B5763', ash: '#8B96A1',
+  bone: '#F1F3F5', signal: '#FF6B6B', ember: '#FF9C8F', blood: '#D9434B',
+  yellow: '#F5CF57', blue: '#7DA6FF', teal: '#5FD3B5', purple: '#A9A2FF', amber: '#F5A25D', magenta: '#D84CA8',
+};
+const rgba = (hex, a = 1) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+};
+const ARCH = (wght, px, stretch = 'normal') => `${wght} ${stretch} ${px}px Archivo`;
+const MONO = (px, wght = 400) => `${wght} ${px}px 'IBM Plex Mono'`;
+const SERIF = (px, wght = 500) => `italic ${wght} ${px}px 'Cormorant Garamond'`;
+
+// ================================================================ math
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = {
+  linear: (t) => t,
+  inQuad: (t) => t * t,
+  outQuad: (t) => 1 - (1 - t) * (1 - t),
+  inCubic: (t) => t * t * t,
+  outCubic: (t) => 1 - Math.pow(1 - t, 3),
+  inOutCubic: (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  outQuart: (t) => 1 - Math.pow(1 - t, 4),
+  inExpo: (t) => t <= 0 ? 0 : Math.pow(2, 10 * t - 10),
+  outExpo: (t) => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),
+  inOutExpo: (t) => t <= 0 ? 0 : t >= 1 ? 1 : t < .5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
+  outBack: (t) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2),
+};
+const prog = (x, a, b, fn = ease.linear) => fn(clamp((x - a) / (b - a)));
+const pulse = (t, t0, hl = .12) => t < t0 ? 0 : Math.pow(.5, (t - t0) / hl);
+const win = (x, a, b, fi = .2, fo = .2) => Math.min(prog(x, a, a + fi), 1 - prog(x, b - fo, b));
+const spring = (t, freq = 3, damp = .35) => {
+  if (t <= 0) return 0;
+  const w = TAU * freq;
+  return 1 - Math.exp(-damp * w * t) * Math.cos(w * Math.sqrt(1 - damp * damp) * t);
+};
+function keys(t, ks) {
+  if (t <= ks[0][0]) return ks[0][1];
+  for (let i = 1; i < ks.length; i++) {
+    const k = ks[i];
+    if (t <= k[0]) { const p = ks[i - 1]; return lerp(p[1], k[1], (k[2] || ease.inOutCubic)((t - p[0]) / (k[0] - p[0]))); }
+  }
+  return ks[ks.length - 1][1];
+}
+function hash(...xs) {
+  let h = 2166136261 >>> 0;
+  for (const x of xs) {
+    h ^= Math.floor(x * 1000003) | 0; h = Math.imul(h, 16777619);
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+  }
+  return (h >>> 0) / 4294967296;
+}
+const frameIdx = (t) => Math.round(t * 60);
+const fmtUSD = (v) => '$' + (v < 10 ? v.toFixed(2) : v < 1000 ? v.toFixed(1) : Math.round(v).toLocaleString('en-US'));
+const fmtInt = (v) => Math.round(v).toLocaleString('en-US');
+
+// ================================================================ canvases
+const cv = document.getElementById('c');
+const EXPORT = new URLSearchParams(location.search).has('export');
+if (EXPORT) document.body.classList.add('export');
+const SCALE = EXPORT ? 1 : Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * innerHeight / H));
+cv.width = W * SCALE; cv.height = H * SCALE;
+const c = cv.getContext('2d');
+const glowCv = document.createElement('canvas');
+glowCv.width = cv.width >> 1; glowCv.height = cv.height >> 1;
+const g = glowCv.getContext('2d');
+
+// film grain tiles
+const grainTiles = [];
+for (let k = 0; k < 4; k++) {
+  const gc = document.createElement('canvas'); gc.width = gc.height = 256;
+  const x = gc.getContext('2d'), im = x.createImageData(256, 256);
+  for (let i = 0; i < 65536; i++) { const v = (hash(i, k) * 255) | 0; im.data.set([v, v, v, 255], i * 4); }
+  x.putImageData(im, 0, 0);
+  grainTiles.push(c.createPattern(gc, 'repeat'));
+}
+
+function both(fn) { fn(c, false); fn(g, true); }
+// save + transform both the main and the glow layer, so glows stay attached to what they light
+function push(fn) { for (const x of [c, g]) { x.save(); fn(x); } }
+function pop() { c.restore(); g.restore(); }
+function view(x) { const k = x === g ? SCALE / 2 : SCALE; x.setTransform(k, 0, 0, k, 0, 0); }
+function withXf(fn, tx, ty, s = 1, rot = 0, ox = W / 2, oy = H / 2) {
+  for (const x of [c, g]) { x.save(); x.translate(ox + tx, oy + ty); x.rotate(rot); x.scale(s, s); x.translate(-ox, -oy); }
+  fn();
+  for (const x of [c, g]) x.restore();
+}
+
+// ================================================================ motifs
+function sparkParticles(t, headAt, { rate = 70, life = .5, speed = 260, grav = 520, seed = 1, I = 1, w = 2 } = {}) {
+  const n0 = Math.floor((t - life) * rate), n1 = Math.floor(t * rate);
+  both((x) => { x.lineCap = 'round'; });
+  for (let n = n0; n <= n1; n++) {
+    const tb = n / rate;
+    if (tb > t) continue;
+    const h = headAt(tb);
+    if (!h) continue;
+    const age = t - tb, lf = life * (.35 + .65 * hash(n, seed + 2));
+    if (age > lf) continue;
+    const a = hash(n, seed) * TAU, sp = speed * (.25 + hash(n, seed + 1) ** 2 * 1.2);
+    const vx = Math.cos(a) * sp, vy = Math.sin(a) * sp - speed * .3;
+    const at = (s) => [h.x + vx * s, h.y + vy * s + .5 * grav * s * s];
+    const [x0, y0] = at(Math.max(0, age - .022)), [x1, y1] = at(age);
+    const k = 1 - age / lf;
+    both((x) => {
+      x.strokeStyle = k > .6 ? rgba('#FFE1DC', k * I) : rgba(C.ember, Math.min(1, k * 1.4) * I);
+      x.lineWidth = w * (.5 + k * .7);
+      x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke();
+    });
+  }
+}
+// radial burst of sparks from (x, y) at time t0
+function burst(t, t0, x, y, { n = 40, speed = 900, life = .7, seed = 5, grav = 900, w = 3 } = {}) {
+  const age = t - t0;
+  if (age < 0 || age > life) return;
+  both((ctx) => { ctx.lineCap = 'round'; });
+  for (let i = 0; i < n; i++) {
+    const a = hash(i, seed) * TAU, sp = speed * (.3 + .7 * hash(i, seed + 1));
+    const lf = life * (.4 + .6 * hash(i, seed + 2));
+    if (age > lf) continue;
+    const drag = (s) => (1 - Math.exp(-4 * s)) / 4; // velocity decays
+    const pos = (s) => [x + Math.cos(a) * sp * drag(s), y + Math.sin(a) * sp * drag(s) + .5 * grav * s * s];
+    const [x0, y0] = pos(Math.max(0, age - .03)), [x1, y1] = pos(age);
+    const k = 1 - age / lf;
+    both((ctx) => {
+      ctx.strokeStyle = k > .55 ? rgba('#FFF0C8', k) : rgba(C.ember, k * 1.3);
+      ctx.lineWidth = w * (.4 + .8 * k);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    });
+  }
+}
+function sparkHead(x, y, t, scale = 1, I = 1) {
+  const flick = .85 + .15 * Math.sin(t * 91.7) * Math.sin(t * 57.3);
+  both((ctx, glow) => {
+    const r = (glow ? 46 : 26) * scale;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(255,250,240,${I * flick})`);
+    gr.addColorStop(.18, `rgba(255,160,150,${.95 * I * flick})`);
+    gr.addColorStop(.45, rgba(C.signal, .45 * I));
+    gr.addColorStop(1, rgba(C.signal, 0));
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(255,200,190,${.8 * I})`;
+    ctx.lineWidth = 1.6 * scale;
+    for (let i = 0; i < 4; i++) {
+      const a = i * TAU / 4 + t * 3 + .4, rr = (13 + 8 * hash(frameIdx(t), i)) * scale;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); ctx.stroke();
+    }
+  });
+}
+function cropMarks(k, col = C.bone, a = .7) {
+  const m = lerp(-90, 44, k), L = 34;
+  c.strokeStyle = rgba(col, a); c.lineWidth = 1.5;
+  for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const x = sx ? W - m : m, y = sy ? H - m : m, dx = sx ? -1 : 1, dy = sy ? -1 : 1;
+    c.beginPath(); c.moveTo(x, y + dy * L); c.lineTo(x, y); c.lineTo(x + dx * L, y); c.stroke();
+  }
+}
+function mono(text, x, y, { px = 24, col = C.ash, a = 1, align = 'left', wght = 400, ls = 2 } = {}) {
+  c.font = MONO(px, wght); c.fillStyle = rgba(col, a); c.textAlign = align;
+  c.letterSpacing = ls + 'px'; c.fillText(text, x, y); c.letterSpacing = '0px'; c.textAlign = 'left';
+}
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
+}
+
+// ================================================================ the timeline
+// Act 02 maps time to months: the flat years pass fast, the run-up gets room.
+const T_CLIMB0 = 3.0, T_CLIMB1 = 16.5;
+const monthAt = (t) => keys(t, [[T_CLIMB0, 0], [7.0, 180, ease.inQuad], [11.0, 262, ease.linear], [T_CLIMB1, M_END, ease.outCubic]]);
+const ymaxAt = (t) => {
+  const m = monthAt(t + .3);
+  return Math.max(.6, Math.max(runMax[Math.floor(m)], priceAt(m)) * 1.14);
+};
+// the chart
+const CX0 = 150, CX1 = 860, CY1 = 720, CY0 = 1440;
+const xOf = (m) => CX0 + m / M_END * (CX1 - CX0);
+const yOf = (v, ym) => CY0 - v / ym * (CY0 - CY1);
+const EVENTS = [
+  { name: 'DOT-COM', m0: 2, m1: 33, row: 0, col: 'purple' },
+  { name: 'FINANCIAL CRISIS', m0: 95, m1: 113, row: 1, col: 'amber' },
+  { name: 'EURO DEBT', m0: 123, m1: 150, row: 0, col: 'amber' },
+  { name: 'COVID-19', m0: 241, m1: 251, row: 0, col: 'teal' },
+  { name: 'INFLATION', m0: 264, m1: 281, row: 1, col: 'yellow' },
+  { name: 'AI BOOM', m0: 276, m1: M_END, row: 2, hot: true },
+];
+// first month the price closes above each milestone, and the time the spark gets there
+const MILESTONES = [1, 10, 50, 100, 200].map((v) => {
+  const m = P.findIndex((p) => p >= v);
+  let lo = T_CLIMB0, hi = T_CLIMB1;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; monthAt(mid) < m ? lo = mid : hi = mid; }
+  return { v, m, t: hi };
+});
+
+// ================================================================ act 01 — title slam (0–3 s)
+function act1(t) {
+  const words = [
+    { s: 'SHARE', at: .5, y: 760, px: 200, stretch: 'expanded' },
+    { s: 'PRICE', at: 1.0, y: 960, px: 200, stretch: 'expanded' },
+    { s: 'NVIDIA', at: 1.5, y: 1210, px: 250, stretch: 'normal', dot: true },
+  ];
+  const lift = prog(t, 2.55, 3.0, ease.inExpo);
+  // ignition
+  const ig = prog(t, 0, .45, ease.outExpo);
+  if (t < .6) sparkHead(W / 2, H / 2 + (1 - ig) * 120, t, .6 + 1.2 * ig);
+  burst(t, .5, W / 2, H / 2, { n: 46, seed: 2 });
+  c.textBaseline = 'alphabetic';
+  for (const w of words) {
+    if (t < w.at) continue;
+    const a = t - w.at;
+    const s = 1 + .5 * (1 - ease.outExpo(clamp(a / .25))) + .02 * a;
+    push((x) => { x.translate(W / 2, w.y - w.px * .34 - lift * 900); x.scale(s, s); });
+    c.font = ARCH(900, w.px, w.stretch);
+    c.globalAlpha = 1 - lift;
+    const tw = c.measureText(w.s).width + (w.dot ? w.px * .28 : 0);
+    c.fillStyle = a < .25 ? C.signal : C.bone;
+    c.fillText(w.s, -tw / 2, w.px * .34);
+    if (w.dot) {
+      const dx = -tw / 2 + c.measureText(w.s).width + w.px * .03, dy = w.px * .34 - w.px * .08;
+      both((ctx, glow) => { ctx.globalAlpha = 1 - lift; ctx.fillStyle = glow ? rgba(C.signal, .9) : C.signal; ctx.fillRect(dx, dy - w.px * .06, w.px * .16, w.px * .16); });
+    }
+    pop();
+  }
+  // a sub-line types itself in, word by word on the 8ths
+  const sub = ['26', 'years.', 'One', 'chart.'];
+  c.font = SERIF(64);
+  let sx = W / 2 - c.measureText(sub.join(' ')).width / 2;
+  sub.forEach((w, i) => {
+    const at = 2.0 + i * .125, a = prog(t, at, at + .2, ease.outExpo);
+    c.fillStyle = rgba(i === 3 ? C.signal : C.bone, a * (1 - lift));
+    c.fillText(w, sx, 1380 + (1 - a) * 30 - lift * 900);
+    sx += c.measureText(w + ' ').width;
+  });
+  // the flash on every slam
+  return { shake: words.reduce((s, w) => s + pulse(t, w.at, .05) * 22, 0), flash: pulse(t, .5, .06) * .5 };
+}
+
+// ================================================================ act 02 — the climb (3–16.5 s) + act 03 frame
+function header(t, a, m) {
+  // title and subtitle (persist through the climb)
+  const k = prog(t, 2.8, 3.3, ease.outExpo) * a;
+  if (k <= 0) return;
+  c.globalAlpha = k;
+  c.font = ARCH(800, 74); c.fillStyle = C.bone; c.textBaseline = 'alphabetic';
+  const tx = 90 + (1 - k) * -60;
+  c.fillText('Share price: NVIDIA', tx, 250);
+  const tw = c.measureText('Share price: NVIDIA').width;
+  both((ctx, glow) => { ctx.fillStyle = glow ? rgba(C.signal, .8) : C.signal; ctx.fillRect(tx + tw + 6, 238, 13, 13); });
+  mono('2000-01 → 2026-10 · USD / SHARE · SPLIT-ADJUSTED', 92, 300, { px: 22, col: C.ash });
+  c.globalAlpha = 1;
+
+  // live value: fixed digit cells so the number doesn't wobble while it rolls
+  const v = priceAt(m);
+  const txt = fmtUSD(v);
+  const px = 172, kick = pulse(t, MILESTONES.reduce((b, ms) => (t >= ms.t ? ms.t : b), -9), .12);
+  c.font = ARCH(900, px);
+  const cell = c.measureText('0').width;
+  let x = 90;
+  const y = 520;
+  both((ctx, glow) => {
+    ctx.font = ARCH(900, px); ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = k;
+    ctx.fillStyle = glow ? rgba(C.signal, .32 + .5 * kick) : C.signal;
+    let xx = x;
+    for (const ch of txt) {
+      const w = /[0-9]/.test(ch) ? cell : ctx.measureText(ch).width;
+      ctx.fillText(ch, xx + (/[0-9]/.test(ch) ? (cell - ctx.measureText(ch).width) / 2 : 0), y - kick * 14);
+      xx += w;
+    }
+    ctx.globalAlpha = 1;
+  });
+  // date + change
+  c.globalAlpha = k;
+  mono('NVIDIA · CLOSE', 92, 330 + 44, { px: 22, col: C.signal, wght: 500 });
+  c.font = MONO(54, 500); c.fillStyle = C.bone; c.textAlign = 'right';
+  c.fillText(monthLabel(m), W - 90, 520);
+  c.textAlign = 'left';
+  const chg = (v / P[0] - 1) * 100;
+  mono(`${chg >= 0 ? '+' : '−'}${fmtInt(Math.abs(chg))}% SINCE JAN 2000`, W - 90, 575, { px: 22, col: chg >= 0 ? C.ember : C.ash, align: 'right' });
+  c.globalAlpha = 1;
+}
+
+function chart(t, a, m, ym) {
+  if (a <= 0) return;
+  const reveal = prog(t, 2.9, 3.6, ease.outExpo);
+  c.globalAlpha = a;
+
+  // context bands (they wipe open as the playhead crosses them)
+  for (const e of EVENTS) {
+    if (m < e.m0) continue;
+    const x0 = xOf(e.m0), x1 = xOf(Math.min(m, e.m1));
+    c.fillStyle = rgba(e.hot ? C.signal : C.bone, e.hot ? .07 : .045);
+    c.fillRect(x0, CY1, Math.max(1, x1 - x0), CY0 - CY1);
+    c.strokeStyle = rgba(e.hot ? C.signal : C.bone, .3); c.lineWidth = 1; c.setLineDash([3, 6]);
+    c.beginPath(); c.moveTo(x0, CY1); c.lineTo(x0, CY0); c.stroke(); c.setLineDash([]);
+    // the label stamps in: scale-down slam, then holds
+    const age = (m - e.m0) / 8; // in "months/8" — stamps over ~8 months of playhead
+    const st = clamp(age);
+    const s = 1 + .6 * (1 - ease.outExpo(st));
+    c.save();
+    c.translate(x0 + 8, CY0 - 74 - e.row * 46);
+    c.scale(s, s);
+    c.font = MONO(19, 600); c.letterSpacing = '2px';
+    const lw = c.measureText(e.name).width + 18;
+    c.fillStyle = e.hot ? C.signal : rgba(C.ink2, .92);
+    c.fillRect(0, -26, lw, 36);
+    c.strokeStyle = rgba(e.hot ? C.signal : C.bone, .45); c.strokeRect(0, -26, lw, 36);
+    c.fillStyle = e.hot ? C.ink : C[e.col]; c.globalAlpha = a * st;
+    c.fillText(e.name, 9, -1);
+    c.letterSpacing = '0px';
+    c.restore();
+    c.globalAlpha = a;
+  }
+
+  // grid: 1-2-5 levels, finer levels fade as the scale grows
+  const steps = [];
+  for (let e = -2; e <= 3; e++) for (const k of [1, 2, 5]) steps.push(k * 10 ** e);
+  const chartH = CY0 - CY1;
+  const alphaOf = (s) => prog(s / ym * chartH, 60, 130);
+  const fine = steps.find((s) => s / ym * chartH >= 60);
+  for (let k = 1; k * fine <= ym * 1.001; k++) {
+    const v = +(k * fine).toPrecision(6);
+    let al = 0;
+    for (const s of steps) if (s >= fine && Math.abs(v / s - Math.round(v / s)) < 1e-6) al = Math.max(al, alphaOf(s));
+    if (al <= .01) continue;
+    const y = yOf(v, ym);
+    c.strokeStyle = rgba(C.bone, .1 * al * reveal); c.lineWidth = 1;
+    c.beginPath(); c.moveTo(CX0, y); c.lineTo(lerp(CX0, CX1, reveal), y); c.stroke();
+    mono('$' + (v >= 1 ? (Number.isInteger(v) ? v : v.toFixed(1)) : v.toFixed(2)), CX0 - 16, y + 7, { px: 20, col: C.ash, a: al * reveal, align: 'right', ls: 0 });
+  }
+  // axes
+  c.strokeStyle = rgba(C.bone, .85 * reveal); c.lineWidth = 2;
+  c.beginPath(); c.moveTo(CX0, CY0); c.lineTo(lerp(CX0, CX1 + 20, reveal), CY0); c.stroke();
+  mono('$0', CX0 - 16, CY0 + 7, { px: 20, col: C.ash, a: reveal, align: 'right', ls: 0 });
+  // years
+  for (let y = 2000; y <= 2025; y += 5) {
+    const mm = (y - 2000) * 12, x = xOf(mm), lit = m >= mm;
+    c.strokeStyle = rgba(C.bone, .6 * reveal); c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(x, CY0); c.lineTo(x, CY0 + 12); c.stroke();
+    mono(String(y), x, CY0 + 46, { px: 22, col: lit ? C.bone : C.graphite, a: reveal, align: 'center', ls: 0 });
+  }
+
+  // the price line: hatched area, glowing stroke
+  const N = Math.floor(m);
+  const pts = [];
+  for (let i = 0; i <= N; i++) pts.push([xOf(i), yOf(P[i], ym)]);
+  pts.push([xOf(m), yOf(priceAt(m), ym)]);
+  if (pts.length > 1) {
+    const gr = c.createLinearGradient(0, CY1, 0, CY0);
+    gr.addColorStop(0, rgba(C.signal, .32)); gr.addColorStop(1, rgba(C.signal, 0));
+    c.fillStyle = gr;
+    c.beginPath(); c.moveTo(pts[0][0], CY0);
+    for (const p of pts) c.lineTo(p[0], p[1]);
+    c.lineTo(pts[pts.length - 1][0], CY0); c.closePath(); c.fill();
+    // engraving: vertical hairlines under the curve, every 6 px
+    c.strokeStyle = rgba(C.signal, .22); c.lineWidth = 1.2;
+    c.beginPath();
+    for (let x = CX0 + 3; x < pts[pts.length - 1][0]; x += 6) {
+      const mm = (x - CX0) / (CX1 - CX0) * M_END;
+      const y = yOf(priceAt(mm), ym);
+      if (CY0 - y > 3) { c.moveTo(x, y + 4); c.lineTo(x, CY0); }
+    }
+    c.stroke();
+    both((ctx, glow) => {
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = glow ? rgba(C.signal, .95) : C.signal;
+      ctx.lineWidth = glow ? 9 : 4.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  // milestone rules: flash orange across the chart when the price first crosses them, then settle
+  for (const ms of MILESTONES) {
+    if (t < ms.t) continue;
+    const k = pulse(t, ms.t, .25), y = yOf(ms.v, ym);
+    if (y < CY1 - 2) continue;
+    c.strokeStyle = rgba(C.signal, .25 + .75 * k); c.lineWidth = 1 + 2 * k;
+    c.setLineDash([10, 8]); c.beginPath(); c.moveTo(CX0, y); c.lineTo(CX1, y); c.stroke(); c.setLineDash([]);
+  }
+
+  // spark head + value tag (only while it is drawing)
+  if (t >= T_CLIMB0 && a > .5) {
+    const hx = xOf(m), hy = yOf(priceAt(m), ym);
+    const headAt = (tb) => (tb >= T_CLIMB0 ? { x: xOf(monthAt(tb)), y: yOf(priceAt(monthAt(tb)), ymaxAt(tb)) } : null);
+    sparkParticles(t, headAt, { seed: 7, rate: 80 });
+    sparkHead(hx, hy, t, 1.15);
+    c.font = ARCH(800, 34); c.fillStyle = C.signal;
+    c.fillText(fmtUSD(priceAt(m)), Math.min(hx + 28, W - 200), hy - 22);
+  }
+  c.globalAlpha = 1;
+}
+
+function milestoneChips(t, a) {
+  // chips under the chart: each slams in when its milestone is crossed
+  c.globalAlpha = a;
+  mono('MILESTONES', 92, 1556, { px: 20, col: C.graphite });
+  MILESTONES.forEach((ms, i) => {
+    const x = 90 + (i % 3) * 305, y = 1580 + Math.floor(i / 3) * 106;
+    const k = prog(t, ms.t, ms.t + .25, ease.outExpo);
+    c.strokeStyle = rgba(C.bone, .18); c.lineWidth = 1;
+    c.strokeRect(x, y, 285, 92);
+    if (k <= 0) { mono(`$${ms.v}`, x + 18, y + 50, { px: 30, col: C.graphite, a: .5 }); return; }
+    const s = 1 + .35 * (1 - k);
+    c.save(); c.translate(x + 142, y + 46); c.scale(s, s); c.translate(-x - 142, -y - 46);
+    const hot = pulse(t, ms.t, .35);
+    c.fillStyle = hot > .05 ? rgba(C.yellow, .25 + .75 * hot) : rgba(C.ink2, 1);
+    c.fillRect(x, y, 285, 92);
+    c.font = ARCH(900, 42); c.fillStyle = hot > .5 ? C.ink : C.bone;
+    c.fillText(`$${ms.v}`, x + 18, y + 50);
+    mono(`FIRST · ${monthLabel(ms.m)}`, x + 19, y + 78, { px: 17, col: hot > .5 ? C.ink : C.ash, ls: 1 });
+    c.restore();
+  });
+  c.globalAlpha = 1;
+}
+
+// ================================================================ act 03 — the payoff (16.5–20 s)
+function act3(t) {
+  const v = P[M_END];
+  const exit = prog(t, 19.5, 20.0, ease.inExpo);
+  // the "current value" card slams in on the 17.0 downbeat
+  const s1 = prog(t, 17.0, 17.3, ease.outExpo);
+  if (t >= 17.0) {
+    const s = (1 + .45 * (1 - s1)) * (1 - exit);
+    c.save(); c.translate(W / 2, 820); c.scale(s, s); c.rotate((1 - s1) * -.04);
+    roundRect(c, -450, -230, 900, 430, 36);
+    c.fillStyle = C.yellow; c.fill();
+    c.textAlign = 'center'; c.fillStyle = C.ink;
+    c.font = ARCH(600, 40); c.fillText('Current value', 0, -150);
+    c.font = ARCH(900, 230, 'semi-condensed'); c.fillText(fmtUSD(v), 0, 50);
+    c.font = ARCH(500, 32); c.fillText('USD / share · 2026-10', 0, 135);
+    c.textAlign = 'left';
+    c.restore();
+  }
+  // ×2,389 and the $1,000 line, one per beat
+  const mult = v / P[0];
+  const r1 = prog(t, 17.5, 17.8, ease.outExpo), r2 = prog(t, 18.0, 18.3, ease.outExpo), r3 = prog(t, 18.5, 18.8, ease.outExpo);
+  c.globalAlpha = 1 - exit;
+  if (r1 > 0) {
+    c.save(); c.translate(W / 2, 1250); c.scale(1 + .4 * (1 - r1), 1 + .4 * (1 - r1));
+    c.font = ARCH(900, 150, 'expanded'); c.fillStyle = C.bone; c.textAlign = 'center';
+    c.fillText('×' + fmtInt(mult * prog(t, 17.5, 18.4, ease.outExpo)), 0, 50);
+    c.restore(); c.textAlign = 'left';
+  }
+  if (r2 > 0) mono('SINCE JANUARY 2000', W / 2, 1360 + (1 - r2) * 30, { px: 26, col: C.ash, a: r2, align: 'center', ls: 4 });
+  if (r3 > 0) {
+    c.font = SERIF(66); c.textAlign = 'center'; c.fillStyle = rgba(C.bone, r3);
+    c.fillText('$1,000 then is', W / 2, 1480 + (1 - r3) * 30);
+    both((ctx, glow) => {
+      ctx.globalAlpha = (1 - exit) * r3; ctx.textAlign = 'center';
+      ctx.font = SERIF(100, 500); ctx.fillStyle = glow ? rgba(C.signal, .7) : C.signal;
+      ctx.fillText('$' + (1000 * mult / 1e6).toFixed(2) + 'M', W / 2, 1595 + (1 - r3) * 40);
+      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    });
+  }
+  c.globalAlpha = 1;
+  burst(t, 17.0, W / 2, 820, { n: 70, speed: 1500, seed: 21, life: .9 });
+  // everything collapses into the spark, which rises to become the search caret
+  if (t >= 19.5) {
+    const k = prog(t, 19.5, 20.0, ease.inOutCubic);
+    sparkHead(W / 2, lerp(820, 760, k), t, 1.4 - .4 * k);
+  }
+  return { shake: pulse(t, 17.0, .07) * 30 + pulse(t, 17.5, .05) * 12, flash: pulse(t, 17.0, .04) * .5, zoom: 1 + .04 * pulse(t, 17.0, .15) };
+}
+
+// ================================================================ act 04 — the search and the profile (20–30 s)
+const HANDLE = 'datamotionhq';
+const QUERY = '@' + HANDLE;
+const T_TYPE = 21.0, T_KEY = .125; // one character per 16th
+const T_RES = T_TYPE + QUERY.length * T_KEY + .125; // results land on the 16th after the last key
+const T_TAP1 = 23.5, T_PROF = 24.0, T_TAP2 = 26.5, T_END = 27.5;
+const BAR = { x: 80, y: 700, w: 920, h: 112 };
+const PROFILE = { name: 'Data Motion Hq', posts: 3, followers: 2, following: 0, bio: ['Making data worth watching.', 'Markets • Economics • History'] };
+
+// value noise for the thumbnails' wiggles
+const vnoise = (x, seed) => {
+  const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+  return lerp(hash(i, seed), hash(i + 1, seed), u) * 2 - 1;
+};
+
+/** The logo mark (a stand-in for the account's logo): a yellow peak with a data point, in unit coords. */
+function logoMark(ctx, cx, cy, r) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(r, r);
+  ctx.strokeStyle = C.yellow; ctx.lineWidth = .17; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(-.62, .45); ctx.lineTo(-.18, -.38); ctx.lineTo(.08, .12); ctx.lineTo(.38, -.22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(.02, .45); ctx.lineTo(.62, .45); ctx.stroke();
+  ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.arc(.5, -.5, .13, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+function avatar(cx, cy, r, t, ringK = 1) {
+  // dark disc, the logo, and the warm story ring drawing itself around it
+  c.fillStyle = C.ink; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+  c.strokeStyle = rgba(C.bone, .08); c.lineWidth = 2; c.stroke();
+  logoMark(c, cx, cy + r * .02, r * .62);
+  both((ctx, glow) => {
+    const gr = ctx.createLinearGradient(cx - r, cy + r, cx + r, cy - r);
+    gr.addColorStop(0, C.yellow); gr.addColorStop(.45, C.signal); gr.addColorStop(1, C.magenta);
+    ctx.strokeStyle = gr; ctx.lineWidth = Math.max(3, r * (glow ? .1 : .075)); ctx.lineCap = 'round';
+    if (glow) ctx.globalAlpha *= .5;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 1.13, Math.PI * .75, Math.PI * .75 + TAU * ringK); ctx.stroke();
+    if (glow) ctx.globalAlpha *= 2;
+  });
+}
+
+function finger(x, y, t, tapAt, a = 1) {
+  // a touch indicator: soft disc + ring; on a tap it presses and throws a ripple
+  const press = Math.max(pulse(t, tapAt, .08), t >= tapAt - .08 && t < tapAt ? prog(t, tapAt - .08, tapAt) : 0);
+  const r = 46 * (1 - .25 * press);
+  c.fillStyle = rgba(C.bone, (.18 + .2 * press) * a);
+  c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+  c.strokeStyle = rgba(C.bone, .75 * a); c.lineWidth = 2.5;
+  c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke();
+  const rp = prog(t, tapAt, tapAt + .45, ease.outCubic);
+  if (rp > 0 && rp < 1) {
+    c.strokeStyle = rgba(C.yellow, 1 - rp); c.lineWidth = 3;
+    c.beginPath(); c.arc(x, y, 46 + rp * 140, 0, TAU); c.stroke();
+  }
+}
+
+/** A number that rolls from `a` to `b` (vertical slide) between t0 and t0 + dur. */
+function rollNum(a, b, x, y, t, t0, { px = 60, wght = 800, dur = .3, hot = C.yellow } = {}) {
+  const k = prog(t, t0, t0 + dur, ease.outExpo);
+  c.font = ARCH(wght, px);
+  c.save(); c.beginPath(); c.rect(x - 10, y - px * 1.0, px * 3, px * 1.25); c.clip();
+  if (k < 1) { c.fillStyle = rgba(C.bone, 1 - k); c.fillText(String(a), x, y - k * px); }
+  if (k > 0) { c.fillStyle = t - t0 < .5 ? hot : C.bone; c.fillText(String(b), x, y + (1 - k) * px); }
+  c.restore();
+}
+
+// the three posts on the grid, redrawn in their own style
+const POSTS = [
+  { title: ['Share price: NVIDIA.'], views: 11, card: 'Current value', lines: [{ col: 'signal', f: (u) => priceAt(u * M_END) / P[M_END] }], big: [['$238.9', 'signal']] },
+  { title: ['Consumer inflation across', '3 countries & regions.'], views: 43, card: 'Current spread', lines: [
+    { col: 'yellow', f: (u) => .35 + .12 * vnoise(u * 22, 1) + .4 * Math.exp(-(((u - .85) / .05) ** 2)) },
+    { col: 'blue', f: (u) => .3 + .12 * vnoise(u * 22, 2) + .3 * Math.exp(-(((u - .86) / .05) ** 2)) },
+    { col: 'signal', f: (u) => .28 + .1 * vnoise(u * 22, 3) + .35 * Math.exp(-(((u - .84) / .05) ** 2)) },
+  ], big: [['1.1', 'signal'], ['1.9', 'yellow'], ['1.8', 'blue']] },
+  { title: [], views: 142, card: 'Current spread', lines: [
+    { col: 'signal', f: (u) => .15 + .7 * u ** 1.4 + .06 * vnoise(u * 14, 4) },
+    { col: 'teal', f: (u) => .15 + .42 * u ** 1.6 + .05 * vnoise(u * 14, 5) },
+  ], big: [['201.1', 'signal'], ['152.7', 'teal']] },
+];
+
+function postTile(p, x, y, w, h, t, t0) {
+  const k = prog(t, t0, t0 + .35, ease.outBack);
+  if (k <= 0) return;
+  c.save(); c.translate(x + w / 2, y + h / 2); c.scale(k, k); c.translate(-w / 2, -h / 2);
+  c.beginPath(); c.rect(0, 0, w, h); c.clip();
+  const bg = c.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#16202A'); bg.addColorStop(1, '#0B1015');
+  c.fillStyle = bg; c.fillRect(0, 0, w, h);
+  let ty = 34;
+  c.font = ARCH(800, 19); c.fillStyle = C.bone;
+  for (const line of p.title) { c.fillText(line, 16, ty); ty += 24; }
+  // headline numbers in the series colours
+  c.font = ARCH(900, p.title.length ? 30 : 34);
+  let bx = 16;
+  for (const [txt, col] of p.big) { c.fillStyle = C[col]; c.fillText(txt, bx, ty + 26); bx += c.measureText(txt).width + 26; }
+  // the chart draws itself in
+  const ck = prog(t, t0 + .15, t0 + .9, ease.inOutCubic);
+  const cx0 = 22, cx1 = w - 22, cy0 = h - 92, cy1 = ty + 60;
+  c.strokeStyle = rgba(C.bone, .07); c.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const yy = lerp(cy0, cy1, i / 4); c.beginPath(); c.moveTo(cx0, yy); c.lineTo(cx1, yy); c.stroke(); }
+  for (const s of p.lines) {
+    c.strokeStyle = C[s.col]; c.lineWidth = 3; c.lineJoin = 'round';
+    c.beginPath();
+    const n = 90;
+    for (let i = 0; i <= n * ck; i++) { const u = i / n, px = lerp(cx0, cx1, u), py = lerp(cy0, cy1, clamp(s.f(u), 0, 1)); i ? c.lineTo(px, py) : c.moveTo(px, py); }
+    c.stroke();
+  }
+  // play badge
+  c.fillStyle = C.bone; roundRect(c, w - 58, 14, 42, 42, 10); c.fill();
+  c.fillStyle = C.ink; c.beginPath(); c.moveTo(w - 44, 25); c.lineTo(w - 44, 45); c.lineTo(w - 27, 35); c.closePath(); c.fill();
+  // yellow card peeking at the bottom
+  c.fillStyle = C.yellow; roundRect(c, w * .15, h - 44, w * .7, 70, 10); c.fill();
+  c.font = ARCH(600, 15); c.fillStyle = C.ink; c.textAlign = 'center'; c.fillText(p.card, w / 2, h - 22); c.textAlign = 'left';
+  // views, counting up
+  const vk = prog(t, t0 + .3, t0 + 1.2, ease.outCubic);
+  const ex = 30, ey = h - 72;
+  c.strokeStyle = C.bone; c.lineWidth = 3;
+  c.beginPath(); c.ellipse(ex, ey, 15, 9, 0, 0, TAU); c.stroke();
+  c.fillStyle = C.bone; c.beginPath(); c.arc(ex, ey, 4.5, 0, TAU); c.fill();
+  c.font = ARCH(700, 30); c.fillText(fmtInt(p.views * vk), ex + 26, ey + 11);
+  c.restore();
+}
+
+function act4(t) {
+  const lt = t - 20;
+  const toProf = prog(t, T_PROF, T_PROF + .5, ease.inOutExpo); // search screen → profile
+  const leave = prog(t, T_END - .3, T_END, ease.inExpo); // profile → end card
+  const outro = prog(t, 29.5, 30.0, ease.inCubic);
+
+  // ---------------- the search screen
+  if (toProf < 1) {
+    const sA = 1 - toProf, sy = -toProf * 400;
+    push((x) => { x.translate(0, sy); x.globalAlpha = sA; });
+    const head = ['Want', 'more', 'charts', 'like', 'this?'];
+    c.font = SERIF(88);
+    let hx = 90;
+    head.forEach((w, i) => {
+      const at = 20.25 + i * .125, k = prog(t, at, at + .25, ease.outExpo);
+      c.fillStyle = rgba(i === 2 ? C.yellow : C.bone, k);
+      c.fillText(w, hx, 560 + (1 - k) * 40);
+      hx += c.measureText(w + ' ').width;
+    });
+    mono('INSTAGRAM  ·  SEARCH', 92, 420, { px: 22, col: C.ash, a: prog(t, 20, 20.3) });
+
+    const grow = prog(t, 20.0, 20.5, ease.outExpo);
+    const bw = BAR.w * grow, bx = W / 2 - bw / 2;
+    roundRect(c, bx, BAR.y, bw, BAR.h, BAR.h / 2);
+    c.fillStyle = C.ink3; c.fill();
+    const focus = t >= T_TYPE - .1;
+    c.strokeStyle = focus ? rgba(C.signal, .9) : rgba(C.bone, .25); c.lineWidth = focus ? 2.5 : 1.5; c.stroke();
+    if (grow > .9) {
+      const mx = BAR.x + 62, my = BAR.y + BAR.h / 2;
+      c.strokeStyle = rgba(C.bone, .8); c.lineWidth = 4;
+      c.beginPath(); c.arc(mx - 4, my - 4, 17, 0, TAU); c.stroke();
+      c.beginPath(); c.moveTo(mx + 9, my + 9); c.lineTo(mx + 22, my + 22); c.stroke();
+      const tx = BAR.x + 112, ty = BAR.y + BAR.h / 2 + 17;
+      const nTyped = clamp(Math.floor((t - T_TYPE) / T_KEY) + 1, 0, QUERY.length);
+      if (nTyped === 0) { c.font = ARCH(400, 46); c.fillStyle = rgba(C.ash, .7); c.fillText('Search', tx, ty); }
+      c.font = ARCH(600, 46);
+      let x = tx;
+      for (let i = 0; i < nTyped; i++) {
+        const ch = QUERY[i], at = T_TYPE + i * T_KEY, age = t - at;
+        const popY = 1 - spring(age, 4, .4);
+        c.save(); c.translate(x, ty - popY * 18);
+        c.fillStyle = age < .12 ? C.signal : C.bone;
+        c.fillText(ch, 0, 0); c.restore();
+        x += c.measureText(ch).width;
+      }
+      const typing = t >= T_TYPE && t < T_RES;
+      const blink = typing || Math.floor(lt / (BEAT / 2)) % 2 === 0;
+      if (blink) both((ctx, glow) => { ctx.fillStyle = glow ? rgba(C.signal, .8) : C.signal; ctx.fillRect(x + 4, ty - 42, 4, 54); });
+    } else {
+      sparkHead(lerp(W / 2, BAR.x + 112, grow), BAR.y + BAR.h / 2, t, 1);
+    }
+
+    const rows = [
+      { h: HANDLE, sub: PROFILE.name + ' · ' + PROFILE.bio[0], me: true },
+      { h: '#datamotion', sub: 'Hashtag' },
+      { h: '#dataviz', sub: 'Hashtag' },
+      { h: '#stockmarket', sub: 'Hashtag' },
+    ];
+    rows.forEach((r, i) => {
+      const at = T_RES + i * .0625, k = prog(t, at, at + .3, ease.outExpo);
+      if (k <= 0) return;
+      const y = 880 + i * 170 + (1 - k) * 60;
+      c.globalAlpha = sA * k;
+      const tap = r.me ? pulse(t, T_TAP1, .15) : 0;
+      if (r.me) {
+        c.fillStyle = rgba(C.yellow, .07 + .2 * tap); c.fillRect(60, y - 10, W - 120, 150);
+        c.fillStyle = C.yellow; c.fillRect(60, y - 10, 6, 150);
+        avatar(170, y + 65, 52, t, prog(t, at, at + .5, ease.outCubic));
+      } else {
+        c.strokeStyle = rgba(C.bone, .3); c.lineWidth = 2;
+        c.beginPath(); c.arc(170, y + 65, 52, 0, TAU); c.stroke();
+        c.font = ARCH(400, 56); c.fillStyle = rgba(C.bone, .7); c.textAlign = 'center'; c.fillText('#', 170, y + 84); c.textAlign = 'left';
+      }
+      c.font = ARCH(r.me ? 700 : 500, 44); c.fillStyle = r.me ? C.bone : rgba(C.bone, .7);
+      c.fillText(r.h, 250, y + 58);
+      mono(r.sub, 252, y + 104, { px: 22, col: C.ash, ls: 0 });
+      c.globalAlpha = sA;
+    });
+    const fk = prog(t, T_TAP1 - .5, T_TAP1 - .05, ease.outCubic);
+    if (fk > 0) finger(lerp(900, 640, fk), lerp(1700, 950, fk), t, T_TAP1, fk);
+    pop();
+  }
+
+  // ---------------- the profile
+  if (toProf > 0 && leave < 1) {
+    const k = toProf;
+    const ps = 1 - .08 * leave;
+    push((x) => { x.translate(W / 2, H / 2); x.scale(ps, ps); x.translate(-W / 2, -H / 2 + (1 - k) * 500); x.globalAlpha = k * (1 - leave); });
+    const A = c.globalAlpha;
+    const at = (d, dur = .3, fn = ease.outExpo) => prog(t, T_PROF + d, T_PROF + d + dur, fn);
+
+    // top bar
+    const tb = at(.2);
+    c.globalAlpha = A * tb;
+    c.strokeStyle = C.bone; c.lineWidth = 5; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(70, 175); c.lineTo(114, 175); c.moveTo(92, 153); c.lineTo(92, 197); c.stroke();
+    for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(950, 160 + i * 16); c.lineTo(1000, 160 + i * 16); c.stroke(); }
+    c.font = ARCH(700, 54); c.textAlign = 'center'; c.fillStyle = C.bone;
+    c.fillText(HANDLE, W / 2 - 14, 193 + (1 - tb) * -20);
+    const hw = c.measureText(HANDLE).width;
+    c.lineWidth = 4; c.beginPath(); c.moveTo(W / 2 - 14 + hw / 2 + 16, 168); c.lineTo(W / 2 - 14 + hw / 2 + 27, 179); c.lineTo(W / 2 - 14 + hw / 2 + 38, 168); c.stroke();
+    c.textAlign = 'left';
+    c.strokeStyle = rgba(C.bone, .08); c.lineWidth = 1.5; c.beginPath(); c.moveTo(0, 250); c.lineTo(W * tb, 250); c.stroke();
+
+    // avatar flies from the result row into place, ring draws around it
+    c.globalAlpha = A;
+    const ax = lerp(170, 215, k), ay = lerp(945, 470, k), ar = lerp(52, 118, k);
+    avatar(ax, ay, ar, t, at(.15, .6, ease.inOutCubic));
+
+    // name and stats
+    const nk = at(.3);
+    c.globalAlpha = A * nk;
+    c.font = ARCH(700, 46); c.fillStyle = C.bone; c.fillText(PROFILE.name, 390 + (1 - nk) * 40, 400);
+    const stats = [[PROFILE.posts, 'posts'], [PROFILE.followers, 'followers'], [PROFILE.following, 'following']];
+    stats.forEach(([n, label], i) => {
+      const sk = at(.4 + i * .0625);
+      const sx = 390 + i * 215;
+      c.globalAlpha = A * sk;
+      if (i === 1) rollNum(Math.round(n * sk), t >= T_TAP2 ? n + 1 : Math.round(n * sk), sx, 495, t, t >= T_TAP2 ? T_TAP2 : 1e9);
+      else { c.font = ARCH(800, 60); c.fillStyle = C.bone; c.fillText(String(Math.round(n * sk)), sx, 495); }
+      c.font = ARCH(400, 34); c.fillStyle = C.ash; c.fillText(label, sx, 545);
+    });
+
+    // bio, word by word
+    PROFILE.bio.forEach((line, li) => {
+      const words = line.split(' ');
+      c.font = ARCH(li ? 400 : 500, 42);
+      let bx = 70;
+      words.forEach((w, wi) => {
+        const wk = at(.6 + li * .25 + wi * .04, .25);
+        c.globalAlpha = A * wk;
+        c.fillStyle = li ? rgba(C.bone, .85) : C.bone;
+        c.fillText(w, bx, 680 + li * 56 + (1 - wk) * 20);
+        bx += c.measureText(w + ' ').width;
+      });
+    });
+
+    // buttons: Follow (brand yellow) + Message; Follow flips to Following on the tap
+    const bk = at(.75);
+    c.globalAlpha = A * bk;
+    const pressed = t >= T_TAP2;
+    const press = Math.max(pulse(t, T_TAP2, .06), t >= T_TAP2 - .06 && t < T_TAP2 ? prog(t, T_TAP2 - .06, T_TAP2) : 0);
+    c.save(); c.translate(350, 830); c.scale(1 - .05 * press, 1 - .05 * press);
+    roundRect(c, -280, -46, 560, 92, 18);
+    c.fillStyle = pressed ? C.ink3 : C.yellow; c.fill();
+    c.font = ARCH(700, 38); c.textAlign = 'center'; c.fillStyle = pressed ? C.bone : C.ink;
+    c.fillText(pressed ? 'Following' : 'Follow', pressed ? 18 : 0, 13);
+    if (pressed) {
+      const ck = prog(t, T_TAP2, T_TAP2 + .25, ease.outCubic);
+      c.strokeStyle = C.yellow; c.lineWidth = 5; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(-118, 0);
+      c.lineTo(lerp(-118, -104, clamp(ck * 2)), lerp(0, 14, clamp(ck * 2)));
+      if (ck > .5) c.lineTo(lerp(-104, -80, (ck - .5) * 2), lerp(14, -14, (ck - .5) * 2));
+      c.stroke();
+    }
+    c.restore();
+    roundRect(c, 650, 784, 360, 92, 18); c.fillStyle = C.ink3; c.fill();
+    c.font = ARCH(700, 38); c.textAlign = 'center'; c.fillStyle = C.bone; c.fillText('Message', 830, 843); c.textAlign = 'left';
+
+    // tabs
+    const tk = at(.85);
+    c.globalAlpha = A * tk;
+    c.strokeStyle = C.bone; c.fillStyle = C.bone; c.lineWidth = 3.5;
+    for (let i = 0; i < 9; i++) c.fillRect(112 + (i % 3) * 17, 942 + Math.floor(i / 3) * 17, 13, 13);
+    roundRect(c, 384, 940, 44, 44, 10); c.stroke();
+    c.beginPath(); c.moveTo(399, 951); c.lineTo(399, 973); c.lineTo(417, 962); c.closePath(); c.stroke();
+    c.beginPath(); c.arc(675, 962, 20, Math.PI * .1, Math.PI * .9); c.stroke(); c.beginPath(); c.arc(675, 962, 20, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+    roundRect(c, 925, 940, 42, 44, 9); c.stroke(); c.beginPath(); c.arc(946, 957, 8, 0, TAU); c.stroke();
+    c.fillRect(30, 1010, 210 * tk, 4);
+
+    // the grid: the three posts, each drawing its own chart
+    c.globalAlpha = A;
+    const tw = 356, th = 474;
+    POSTS.forEach((p, i) => postTile(p, i * (tw + 6), 1020, tw, th, t, T_PROF + .9 + i * .125));
+
+    // after the follow: one line under the grid
+    const fl = prog(t, T_TAP2 + .25, T_TAP2 + .55, ease.outExpo);
+    if (fl > 0) mono('NEW CHARTS · MARKETS · ECONOMICS · HISTORY', W / 2, 1610 + (1 - fl) * 20, { px: 24, col: C.yellow, a: fl, align: 'center', ls: 4, wght: 500 });
+    pop();
+    c.globalAlpha = 1;
+
+    const fk = prog(t, T_TAP2 - .55, T_TAP2 - .05, ease.outCubic);
+    const fo = 1 - prog(t, T_TAP2 + .3, T_TAP2 + .6);
+    if (fk > 0 && fo > 0) finger(lerp(860, 380, fk), lerp(1700, 845, fk), t, T_TAP2, fk * fo);
+    burst(t, T_TAP2, 350, 830, { n: 60, speed: 1200, seed: 31, life: .8 });
+  }
+
+  // ---------------- end card: the mark, the handle, the line
+  if (t >= T_END) {
+    const e1 = prog(t, T_END, T_END + .35, ease.outExpo);
+    const fade = 1 - outro;
+    const s = 1 + .5 * (1 - e1);
+    c.save(); c.globalAlpha = fade;
+    c.translate(W / 2, 760); c.scale(s, s); c.translate(-W / 2, -760);
+    avatar(W / 2, 760, 170, t, prog(t, T_END, T_END + .6, ease.inOutCubic));
+    c.restore();
+    const e2 = prog(t, T_END + .5, T_END + .8, ease.outExpo);
+    if (e2 > 0) {
+      c.save(); c.globalAlpha = fade; c.translate(W / 2, 1060); c.scale(1 + .3 * (1 - e2), 1 + .3 * (1 - e2));
+      c.font = ARCH(900, 92); c.textAlign = 'center'; c.fillStyle = C.bone; c.fillText('@' + HANDLE, 0, 30);
+      c.restore();
+    }
+    const e3 = prog(t, T_END + 1.0, T_END + 1.3, ease.outExpo);
+    if (e3 > 0) {
+      c.globalAlpha = e3 * fade;
+      c.font = SERIF(64); c.textAlign = 'center'; c.fillStyle = C.yellow;
+      c.fillText(PROFILE.bio[0], W / 2, 1190 + (1 - e3) * 24);
+      c.textAlign = 'left';
+      mono('MARKETS · ECONOMICS · HISTORY', W / 2, 1265 + (1 - e3) * 24, { px: 26, col: C.ash, align: 'center', ls: 5, a: e3 * fade });
+      c.globalAlpha = 1;
+    }
+    burst(t, T_END, W / 2, 760, { n: 56, speed: 1300, seed: 41, life: .85 });
+  }
+  if (outro > 0) sparkHead(W / 2, 760, t, 1.2 * (1 - outro));
+
+  return {
+    shake: pulse(t, T_TAP1, .05) * 8 + pulse(t, T_TAP2, .06) * 16 + pulse(t, T_END, .06) * 20,
+    flash: pulse(t, T_TAP2, .05) * .2 + pulse(t, T_END, .05) * .35,
+    zoom: 1 + .025 * pulse(t, T_TAP2, .12) + .03 * pulse(t, T_PROF + .5, .15) + .04 * pulse(t, T_END, .15),
+  };
+}
+
+// ================================================================ frame
+function renderScene(t) {
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.filter = 'none';
+  c.globalCompositeOperation = 'source-over';
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, glowCv.width, glowCv.height);
+  view(c); view(g);
+  c.fillStyle = BG; c.fillRect(0, 0, W, H);
+
+  // a faint blueprint grid behind everything, drifting slowly
+  c.strokeStyle = rgba(C.bone, .025); c.lineWidth = 1;
+  const off = (t * 12) % 90;
+  for (let x = -90 + off; x < W; x += 90) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+  for (let y = -90 + off; y < H; y += 90) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+
+  let post = { shake: 0, flash: 0, zoom: 1 };
+  if (t < 3.0) post = { ...post, ...act1(t) };
+  // the chart frame lives from 2.8 to 17.3 (it recedes under the payoff)
+  if (t >= 2.8 && t < 17.0) {
+    const recede = prog(t, 16.6, 17.0, ease.inCubic);
+    const m = t < T_CLIMB0 ? 0 : monthAt(t);
+    const ym = ymaxAt(Math.max(t, T_CLIMB0));
+    // milestone punches: the camera kicks on every crossing
+    const kick = MILESTONES.reduce((s, ms) => s + pulse(t, ms.t, .1), 0);
+    post.shake += kick * 14;
+    post.zoom *= 1 + .02 * kick;
+    withXf(() => {
+      header(t, 1 - recede, m);
+      chart(t, 1 - recede, m, ym);
+      milestoneChips(t, 1 - recede);
+    }, 0, recede * 120, 1 - recede * .12);
+  }
+  if (t >= 16.9 && t < 20.1) { const o = act3(t); post.shake += o.shake; post.flash += o.flash; post.zoom *= o.zoom; }
+  if (t >= 19.9) { const o = act4(t); post.shake += o.shake; post.flash += o.flash; post.zoom *= o.zoom; }
+
+  // frame furniture
+  const frameIn = prog(t, 0, .6, ease.outExpo) * (1 - prog(t, 29.4, 30, ease.inExpo));
+  cropMarks(frameIn);
+  c.globalAlpha = frameIn;
+  mono('@DATAMOTIONHQ', W - 80, H - 76, { px: 20, col: C.ash, align: 'right', ls: 3 });
+  if (t < 20) mono('SOURCE: YAHOO FINANCE', 80, H - 76, { px: 20, col: C.graphite, ls: 3 });
+  const b = Math.floor(t / BEAT) % 4;
+  for (let i = 0; i < 4; i++) { c.fillStyle = rgba(i === b ? C.signal : C.bone, i === b ? 1 : .25); c.fillRect(80 + i * 18, 84, 10, 10); }
+  c.globalAlpha = 1;
+  return post;
+}
+
+const mkLayer = (div) => { const x = document.createElement('canvas'); x.width = cv.width / div; x.height = cv.height / div; return { cv: x, x: x.getContext('2d') }; };
+const bloomA = mkLayer(2), bloomB = mkLayer(8);
+const BG = (() => { const gr = c.createRadialGradient(W / 2, H * .38, 0, W / 2, H * .45, H * .8); gr.addColorStop(0, '#15202B'); gr.addColorStop(1, '#090D12'); return gr; })();
+
+// composite: scene → shake/zoom → bloom → vignette (grain is added once per output frame)
+const sceneCv = document.createElement('canvas');
+sceneCv.width = cv.width; sceneCv.height = cv.height;
+const sc = sceneCv.getContext('2d');
+function renderComposite(t) {
+  const post = renderScene(t);
+  // apply shake + zoom by redrawing the frame through a transform
+  sc.setTransform(1, 0, 0, 1, 0, 0); sc.drawImage(cv, 0, 0);
+  const fi = frameIdx(t);
+  const sx = (hash(fi, 1) - .5) * post.shake * SCALE, sy = (hash(fi, 2) - .5) * post.shake * SCALE;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = C.ink; c.fillRect(0, 0, cv.width, cv.height);
+  c.translate(cv.width / 2 + sx, cv.height / 2 + sy); c.scale(post.zoom, post.zoom); c.translate(-cv.width / 2, -cv.height / 2);
+  c.drawImage(sceneCv, 0, 0);
+  // bloom: glow layer blurred at two radii, added
+  c.globalCompositeOperation = 'lighter';
+  // blur at half and eighth resolution (cheap), then scale up: same look as a full-res blur
+  bloomA.x.clearRect(0, 0, bloomA.cv.width, bloomA.cv.height);
+  bloomA.x.filter = `blur(${4 * SCALE}px)`; bloomA.x.drawImage(glowCv, 0, 0, bloomA.cv.width, bloomA.cv.height);
+  bloomB.x.clearRect(0, 0, bloomB.cv.width, bloomB.cv.height);
+  bloomB.x.filter = `blur(${4.5 * SCALE}px)`; bloomB.x.drawImage(glowCv, 0, 0, bloomB.cv.width, bloomB.cv.height);
+  c.drawImage(bloomA.cv, 0, 0, cv.width, cv.height);
+  c.globalAlpha = .85; c.drawImage(bloomB.cv, 0, 0, cv.width, cv.height);
+  c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  if (post.flash > .005) { c.fillStyle = rgba(C.bone, Math.min(.8, post.flash)); c.fillRect(0, 0, cv.width, cv.height); }
+  const vg = c.createRadialGradient(cv.width / 2, cv.height / 2, cv.width * .35, cv.width / 2, cv.height / 2, cv.height * .72);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+  c.fillStyle = vg; c.fillRect(0, 0, cv.width, cv.height);
+}
+function grain(t) {
+  const fi = frameIdx(t);
+  c.globalCompositeOperation = 'overlay'; c.globalAlpha = .1;
+  c.setTransform(1, 0, 0, 1, (hash(fi, 7) * 256) | 0, (hash(fi, 8) * 256) | 0);
+  c.fillStyle = grainTiles[fi % 4]; c.fillRect(-256, -256, cv.width + 256, cv.height + 256);
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+}
+
+// offline export: average `n` sub-frames over the shutter (motion blur), then grain once
+let acc = null;
+window.renderFrame = (t, n = 1, shutter = .5) => {
+  if (n <= 1) { renderComposite(t); grain(t); return; }
+  const len = cv.width * cv.height * 4;
+  if (!acc || acc.length !== len) acc = new Float32Array(len);
+  acc.fill(0);
+  for (let i = 0; i < n; i++) {
+    renderComposite(t + ((i + .5) / n - .5) * shutter / 60);
+    const d = c.getImageData(0, 0, cv.width, cv.height).data;
+    for (let j = 0; j < len; j++) acc[j] += d[j];
+  }
+  const im = c.createImageData(cv.width, cv.height);
+  for (let j = 0; j < len; j++) im.data[j] = acc[j] / n + .5;
+  c.putImageData(im, 0, 0);
+  grain(t);
+};
+window.DURATION = DUR;
+window.fontsReady = Promise.all([
+  document.fonts.load(ARCH(900, 100)), document.fonts.load(ARCH(900, 100, 'expanded')), document.fonts.load(ARCH(400, 40)),
+  document.fonts.load(MONO(20)), document.fonts.load(MONO(20, 500)), document.fonts.load(MONO(20, 600)),
+  document.fonts.load(SERIF(60)),
+]).catch(() => {});
+
+// ================================================================ live playback
+if (!EXPORT) {
+  // The soundtrack is the clock while it plays (browsers only allow sound after a tap/click).
+  const q = parseFloat(new URLSearchParams(location.search).get('t'));
+  const probe = document.createElement('audio');
+  const audio = new Audio(probe.canPlayType('audio/mp4; codecs="mp4a.40.2"') ? 'audio/soundtrack.m4a' : 'audio/soundtrack.mp3');
+  audio.loop = true; audio.preload = 'auto';
+  let time = isNaN(q) ? 0 : q, paused = !isNaN(q), last = performance.now(), sound = false;
+  const hint = document.getElementById('sound');
+  const tick = (now) => {
+    if (sound && !audio.paused) time = audio.currentTime % DUR;
+    else if (!paused) time = (time + Math.min(.1, (now - last) / 1000)) % DUR;
+    last = now;
+    window.renderFrame(time);
+    requestAnimationFrame(tick);
+  };
+  const seek = (t) => { time = t; if (sound) audio.currentTime = t; };
+  const setPaused = (p) => { paused = p; if (sound) p ? audio.pause() : audio.play(); };
+  addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); setPaused(!paused); }
+    if (e.code === 'ArrowRight') seek(Math.min(DUR - .01, time + (e.shiftKey ? 5 : 1)));
+    if (e.code === 'ArrowLeft') seek(Math.max(0, time - (e.shiftKey ? 5 : 1)));
+  });
+  // first tap: sound on from the top; later taps restart
+  addEventListener('pointerdown', () => {
+    sound = true; hint.style.opacity = 0;
+    audio.currentTime = 0; time = 0; paused = false;
+    audio.play().catch(() => { sound = false; });
+  });
+  window.fontsReady.finally(() => requestAnimationFrame(tick));
+}
+</script>
+</body>
+</html>
