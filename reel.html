@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion Reel 01</title>
+<meta name="description" content="A 16-second generative motion-graphics loop, rendered live in the browser.">
+<style>
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: block; src: url(fonts/archivo-var.woff2) format('woff2'); }
+  @font-face { font-family: 'Cormorant Garamond'; font-style: italic; font-weight: 400 500; font-display: block; src: url(fonts/cormorant-italic-400.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 300 400; font-display: block; src: url(fonts/plexmono-400.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: block; src: url(fonts/plexmono-500.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: block; src: url(fonts/plexmono-600.woff2) format('woff2'); }
+</style>
+<style>
+  :root { --ink: #0A0A0B; --bone: #EEE9DF; --graphite: #5E5B57; }
+  html, body { margin: 0; height: 100%; background: var(--ink); overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: pointer; }
+  #hint {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    font: 400 12px/1 'IBM Plex Mono', monospace; letter-spacing: .08em; color: var(--graphite);
+    pointer-events: none; transition: opacity .6s; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">click for sound · space to pause</div>
+<script>
+'use strict';
+// Every frame is a pure function of loop time t (0..16 s): 8 bars at 120 BPM.
+// Four plates of one bar-pair each: 01 the curve, 02 the slam, 03 the orbit, 04 the count.
+
+// ---------------------------------------------------------------- constants
+const W = 1920, H = 1080, LOOP = 16, BPM = 120, BEAT = 60 / BPM;
+const C = {
+  ink: '#0A0A0B', ink2: '#151517', graphite: '#5E5B57', ash: '#9C978F',
+  bone: '#EEE9DF', signal: '#FF4D12', ember: '#FF8A3D',
+};
+const rgba = (hex, a = 1) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+};
+const ARCH = (wght, stretch, px) => `${wght} ${stretch} ${px}px Archivo`;
+const MONO = (px, wght = 400) => `${wght} ${px}px 'IBM Plex Mono'`;
+const SERIF = (px) => `italic 500 ${px}px 'Cormorant Garamond'`;
+
+// ---------------------------------------------------------------- math
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x;
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = {
+  linear: (t) => t,
+  inOutCubic: (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  outCubic: (t) => 1 - Math.pow(1 - t, 3),
+  inCubic: (t) => t * t * t,
+  outExpo: (t) => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),
+  inExpo: (t) => t <= 0 ? 0 : Math.pow(2, 10 * t - 10),
+  inOutExpo: (t) => t <= 0 ? 0 : t >= 1 ? 1 : t < .5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
+  outBack: (t) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2),
+};
+const prog = (x, a, b, fn = ease.linear) => fn(clamp((x - a) / (b - a)));
+const pulse = (t, t0, hl = .12) => t < t0 ? 0 : Math.pow(.5, (t - t0) / hl);
+const spring = (t, freq = 3, damp = .35) => {
+  if (t <= 0) return 0;
+  const w = TAU * freq;
+  return 1 - Math.exp(-damp * w * t) * Math.cos(w * Math.sqrt(1 - damp * damp) * t);
+};
+function hash(...xs) {
+  let h = 2166136261 >>> 0;
+  for (const x of xs) {
+    h ^= Math.floor(x * 1000003) | 0; h = Math.imul(h, 16777619);
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+  }
+  return (h >>> 0) / 4294967296;
+}
+const frameIdx = (t) => Math.round(t * 60);
+const beatAt = (t) => t / BEAT;
+
+// ---------------------------------------------------------------- canvases
+const cv = document.getElementById('c');
+const c = cv.getContext('2d');
+const glowCv = document.createElement('canvas');
+const g = glowCv.getContext('2d');
+let DPR = 1, S = 1, OX = 0, OY = 0;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(innerWidth * DPR);
+  cv.height = Math.round(innerHeight * DPR);
+  glowCv.width = Math.max(1, cv.width >> 1);
+  glowCv.height = Math.max(1, cv.height >> 1);
+  S = Math.min(cv.width / W, cv.height / H);
+  OX = (cv.width - W * S) / 2;
+  OY = (cv.height - H * S) / 2;
+  makeGrain();
+}
+
+// film grain: a few pre-baked noise tiles, one per output frame
+let grainTiles = [];
+function makeGrain() {
+  grainTiles = [];
+  for (let k = 0; k < 4; k++) {
+    const gc = document.createElement('canvas');
+    gc.width = gc.height = 256;
+    const x = gc.getContext('2d');
+    const im = x.createImageData(256, 256);
+    for (let i = 0; i < 256 * 256; i++) {
+      const v = (hash(i, k) * 255) | 0;
+      im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v;
+      im.data[i * 4 + 3] = 255;
+    }
+    x.putImageData(im, 0, 0);
+    grainTiles.push(c.createPattern(gc, 'repeat'));
+  }
+}
+
+// draw on the main layer and, for anything orange, on the glow layer too
+function both(fn) { fn(c, false); fn(g, true); }
+
+// ---------------------------------------------------------------- spark motif
+// Deterministic sputter: particles are born on a fixed clock with hashed velocities.
+function sparkParticles(t, headAt, { rate = 70, life = .5, speed = 240, grav = 480, seed = 1, I = 1 } = {}) {
+  const n0 = Math.floor((t - life) * rate), n1 = Math.floor(t * rate);
+  both((x) => { x.lineCap = 'round'; });
+  for (let n = n0; n <= n1; n++) {
+    const tb = n / rate;
+    if (tb > t) continue;
+    const h = headAt(tb);
+    if (!h) continue;
+    const age = t - tb, lf = life * (.35 + .65 * hash(n, seed + 2));
+    if (age > lf) continue;
+    const a = hash(n, seed) * TAU, sp = speed * (.25 + hash(n, seed + 1) ** 2 * 1.2);
+    const vx = Math.cos(a) * sp, vy = Math.sin(a) * sp - speed * .3;
+    const at = (s) => [h.x + vx * s, h.y + vy * s + .5 * grav * s * s];
+    const [x0, y0] = at(Math.max(0, age - .02)), [x1, y1] = at(age);
+    const k = 1 - age / lf;
+    both((x) => {
+      x.strokeStyle = k > .6 ? rgba('#FFE2C4', k * I) : rgba(C.ember, Math.min(1, k * 1.4) * I);
+      x.lineWidth = 1.6 * (.5 + k * .7);
+      x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke();
+    });
+  }
+}
+
+function sparkHead(x, y, t, scale = 1, I = 1) {
+  const flick = .85 + .15 * Math.sin(t * 91.7) * Math.sin(t * 57.3);
+  both((ctx, glow) => {
+    const r = (glow ? 34 : 20) * scale;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(255,250,240,${I * flick})`);
+    gr.addColorStop(.18, `rgba(255,170,90,${.95 * I * flick})`);
+    gr.addColorStop(.45, rgba(C.signal, .45 * I));
+    gr.addColorStop(1, rgba(C.signal, 0));
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(255,190,120,${.8 * I})`;
+    ctx.lineWidth = 1.2 * scale;
+    for (let i = 0; i < 4; i++) {
+      const a = i * TAU / 4 + t * 3 + .4, rr = (10 + 6 * hash(frameIdx(t), i)) * scale;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); ctx.stroke();
+    }
+  });
+}
+
+// ---------------------------------------------------------------- shared furniture
+function cropMarks(t, col) {
+  const k = prog(t, 0, .6, ease.outExpo);
+  const m = lerp(-80, 48, k), L = 28;
+  c.strokeStyle = rgba(col, .7); c.lineWidth = 1;
+  for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const x = sx ? W - m : m, y = sy ? H - m : m, dx = sx ? -1 : 1, dy = sy ? -1 : 1;
+    c.beginPath(); c.moveTo(x, y + dy * L); c.lineTo(x, y); c.lineTo(x + dx * L, y); c.stroke();
+  }
+}
+
+function hud(t, col, plate, title) {
+  c.font = MONO(13); c.fillStyle = rgba(col, .55); c.textBaseline = 'alphabetic';
+  const s = Math.floor(t), cs = Math.floor((t - s) * 100);
+  c.textAlign = 'left';
+  c.fillText(`MOTION / REEL 01   00:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`, 96, H - 64);
+  c.textAlign = 'right';
+  c.fillText(`PLATE ${plate}/04 — ${title}`, W - 96, 84);
+  const b = Math.floor(beatAt(t)) % 4;
+  for (let i = 0; i < 4; i++) {
+    c.fillStyle = rgba(i === b ? C.signal : col, i === b ? 1 : .3);
+    c.fillRect(W - 96 - (3 - i) * 16 - 8, H - 74, 8, 8);
+  }
+  c.textAlign = 'left';
+}
+
+// ---------------------------------------------------------------- plate 01: the curve (0–4 s)
+const GX0 = 420, GX1 = 1500, GY0 = 840, GY1 = 250;
+const curveAt = (u) => ({ x: lerp(GX0, GX1, u), y: lerp(GY0, GY1, ease.outExpo(u)) });
+// where the spark is at time t in plate 01 (null before it exists)
+function plate1Head(t) {
+  if (t < 0) return null;
+  if (t < 1) { const k = ease.inOutCubic(t); return { x: lerp(W / 2, GX0, k), y: lerp(H / 2, GY0, k) }; }
+  return curveAt(prog(t, 1, 3.5, ease.inOutCubic));
+}
+
+function plate1(t) {
+  c.fillStyle = C.ink; c.fillRect(0, 0, W, H);
+  // slow push-in toward the curve's knee
+  const z = lerp(1, 1.05, prog(t, 0, 4, ease.inOutCubic));
+  for (const x of [c, g]) { x.translate(W / 2, H / 2); x.scale(z, z); x.translate(-W / 2, -H / 2); }
+
+  // grid: lines grow in, staggered
+  c.lineWidth = 1;
+  for (let k = 1; k < 16; k++) {
+    const len = H * prog(t, .15 + k * .035, .9 + k * .035, ease.outExpo);
+    c.strokeStyle = rgba(C.graphite, .28);
+    c.beginPath(); c.moveTo(k * 120, 0); c.lineTo(k * 120, len); c.stroke();
+  }
+  for (let k = 1; k < 9; k++) {
+    const len = W * prog(t, .3 + k * .05, 1.1 + k * .05, ease.outExpo);
+    c.beginPath(); c.moveTo(0, k * 120); c.lineTo(len, k * 120); c.stroke();
+  }
+
+  // axes + ticks
+  const ax = prog(t, .7, 1.3, ease.outExpo);
+  c.strokeStyle = rgba(C.bone, .9); c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(GX0, GY0); c.lineTo(lerp(GX0, GX1 + 40, ax), GY0); c.stroke();
+  c.beginPath(); c.moveTo(GX0, GY0); c.lineTo(GX0, lerp(GY0, GY1 - 40, ax)); c.stroke();
+  c.font = MONO(14); c.fillStyle = rgba(C.ash, ax);
+  for (let i = 0; i <= 4; i++) {
+    const a = prog(t, .9 + i * .08, 1.2 + i * .08);
+    const x = lerp(GX0, GX1, i / 4), y = lerp(GY0, GY1, i / 4);
+    c.globalAlpha = a;
+    c.strokeStyle = rgba(C.bone, .9); c.lineWidth = 1;
+    c.beginPath(); c.moveTo(x, GY0); c.lineTo(x, GY0 + 10); c.stroke();
+    c.beginPath(); c.moveTo(GX0, y); c.lineTo(GX0 - 10, y); c.stroke();
+    c.textAlign = 'center'; c.fillText((i / 4).toFixed(2), x, GY0 + 34);
+    c.textAlign = 'right'; c.fillText((i / 4).toFixed(2), GX0 - 20, y + 5);
+  }
+  c.globalAlpha = 1; c.textAlign = 'left';
+  c.fillStyle = rgba(C.ash, ax);
+  c.fillText('t →', GX1 + 52, GY0 + 5);
+  c.fillText('f(t)', GX0 - 14, GY1 - 58);
+
+  // the curve the spark draws
+  const p = t < 1 ? 0 : prog(t, 1, 3.5, ease.inOutCubic);
+  if (p > 0) {
+    both((x, glow) => {
+      x.strokeStyle = glow ? rgba(C.signal, .9) : C.signal;
+      x.lineWidth = glow ? 5 : 2.5; x.lineJoin = 'round'; x.lineCap = 'round';
+      x.beginPath();
+      const N = 240;
+      for (let i = 0; i <= N * p; i++) { const q = curveAt(i / N); i ? x.lineTo(q.x, q.y) : x.moveTo(q.x, q.y); }
+      const q = curveAt(p); x.lineTo(q.x, q.y);
+      x.stroke();
+    });
+  }
+
+  // the equation, set when the curve flattens
+  const eq = prog(t, 2.6, 3.1, ease.outCubic);
+  if (eq > 0) {
+    c.globalAlpha = eq;
+    c.font = SERIF(64); c.fillStyle = C.bone;
+    c.fillText('f(t) = 1 − 2', 1040, 560 + (1 - eq) * 20);
+    const wEq = c.measureText('f(t) = 1 − 2').width;
+    c.font = SERIF(36); c.fillText('−10t', 1040 + wEq + 4, 530 + (1 - eq) * 20);
+    c.font = MONO(14); c.fillStyle = C.ash;
+    c.fillText('ease.outExpo — fast out, long hold', 1044, 600 + (1 - eq) * 20);
+    c.strokeStyle = rgba(C.graphite, .8); c.lineWidth = 1;
+    const k = curveAt(.32);
+    c.beginPath(); c.moveTo(1030, 590); c.lineTo(k.x + 10, k.y + 6); c.stroke();
+    c.globalAlpha = 1;
+  }
+
+  // the spark: it leaves the curve on the last beat and rockets off frame right
+  let head = plate1Head(t);
+  if (t > 3.6) {
+    const k = prog(t, 3.6, 4, ease.inExpo);
+    head = { x: lerp(GX1, W + 200, k), y: lerp(GY1, GY1 - 60, k) };
+  }
+  sparkParticles(t, (tb) => (tb < 3.6 ? plate1Head(tb) : null), { seed: 3 });
+  sparkHead(head.x, head.y, t, 1);
+
+  for (const x of [c, g]) x.setTransform(1, 0, 0, 1, 0, 0), applyView(x);
+  cropMarks(t, C.bone);
+  hud(t, C.bone, '01', 'THE CURVE');
+}
+
+// ---------------------------------------------------------------- plate 02: the slam (4–8 s)
+const WORD = 'MOTION';
+const STRETCH = ['expanded', 'semi-expanded', 'normal', 'semi-condensed', 'condensed', 'extra-condensed'];
+
+function plate2(t) {
+  const lt = t - 4;
+  const hits = [0, .5, 1, 1.5, 2, 2.5]; // one glyph per beat
+  const n = hits.filter((h) => lt >= h).length;
+  const paper = lt < 2; // first bar on bone paper, then the field flips to ink on the 5th glyph
+  const bg = paper ? C.bone : C.ink, fg = paper ? C.ink : C.bone;
+  c.fillStyle = bg; c.fillRect(0, 0, W, H);
+
+  // the squeeze: after the last glyph, width steps down on every 8th, size grows to keep the line
+  const sq = clamp(Math.floor((lt - 3) / .25) + 1, 0, 5);
+  const stretch = STRETCH[sq];
+  const size = [250, 270, 300, 330, 370, 420][sq];
+  c.font = ARCH(900, stretch, size);
+  const widths = [...WORD].map((ch) => c.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) - (WORD.length - 1) * size * .02;
+  let x = W / 2 - total / 2;
+  const base = H / 2 + size * .36;
+
+  // shake on each slam
+  const last = hits[n - 1] ?? -9;
+  const sh = pulse(lt, last, .06) * 14;
+  const sx = (hash(frameIdx(t), 1) - .5) * sh, sy = (hash(frameIdx(t), 2) - .5) * sh;
+  c.save(); c.translate(sx, sy);
+
+  // typographic guides: baseline, cap height, with labels
+  const gA = prog(lt, 0, .4, ease.outExpo);
+  c.strokeStyle = rgba(fg, .25); c.lineWidth = 1;
+  for (const [y, label] of [[base, 'baseline'], [base - size * .686, 'cap height']]) {
+    c.beginPath(); c.moveTo(lerp(W / 2, 96, gA), y); c.lineTo(lerp(W / 2, W - 96, gA), y); c.stroke();
+    c.font = MONO(13); c.fillStyle = rgba(fg, .5 * gA); c.fillText(label, 100, y - 8);
+  }
+
+  c.font = ARCH(900, stretch, size);
+  c.textBaseline = 'alphabetic';
+  for (let i = 0; i < WORD.length; i++) {
+    const w = widths[i];
+    if (lt >= hits[i]) {
+      const a = lt - hits[i];
+      const s = 1 + .35 * (1 - ease.outExpo(clamp(a / .22)));
+      const isNew = i === n - 1 && lt < 3;
+      c.save();
+      c.translate(x + w / 2, base - size * .34);
+      c.scale(s, s);
+      c.fillStyle = isNew ? C.signal : fg;
+      c.fillText(WORD[i], -w / 2, size * .34);
+      c.restore();
+    }
+    x += w - size * .02;
+  }
+  c.restore();
+
+  // annotations
+  c.font = MONO(14); c.fillStyle = rgba(fg, .6);
+  c.fillText(`six glyphs · six beats · width ${[125, 112.5, 100, 87.5, 75, 62.5][sq]}`, 96, 150);
+  c.fillText(`beat ${String(Math.floor(beatAt(t)) + 1).padStart(2, '0')}/32`, 96, 172);
+
+  // flash on the first slam
+  const fl = pulse(lt, 0, .05);
+  if (fl > .01) { c.fillStyle = rgba(paper ? C.ink : C.bone, fl * .35); c.fillRect(0, 0, W, H); }
+  hud(t, fg, '02', 'THE SLAM');
+}
+
+// ---------------------------------------------------------------- plate 03: the orbit (8–12 s)
+function plate3(t) {
+  const lt = t - 8;
+  c.fillStyle = C.ink; c.fillRect(0, 0, W, H);
+  const cx = 1080, cy = 560;
+  const kick = pulse(lt, Math.floor(lt / BEAT) * BEAT, .1);
+  const R = 300 * (1 + .025 * kick) * lerp(.85, 1, prog(lt, 0, .5, ease.outExpo));
+  const rot = lt * .5;
+  const L = [Math.cos(rot * 1.3) * .7, -.5, .6]; // rotating light
+  const ln = Math.hypot(...L); L[0] /= ln; L[1] /= ln; L[2] /= ln;
+
+  // engraved sphere: horizontal hatching whose width follows the shading
+  const reveal = prog(lt, 0, .7, ease.outExpo);
+  c.lineCap = 'butt';
+  for (let y = -R + 4; y < R; y += 7) {
+    if ((y + R) / (2 * R) > reveal) break;
+    const half = Math.sqrt(R * R - y * y), seg = 18;
+    for (let i = 0; i < seg; i++) {
+      const xa = -half + (2 * half) * i / seg, xb = xa + 2 * half / seg, xm = (xa + xb) / 2;
+      const z = Math.sqrt(Math.max(0, R * R - xm * xm - y * y));
+      const d = (xm * L[0] + y * L[1] + z * L[2]) / R;
+      const dark = clamp(1 - (d * .5 + .5) * 1.25);
+      c.lineWidth = .4 + dark * 5;
+      c.strokeStyle = rgba(C.bone, .25 + .6 * dark);
+      c.beginPath(); c.moveTo(cx + xa, cy + y); c.lineTo(cx + xb, cy + y); c.stroke();
+    }
+  }
+  // meridians
+  c.strokeStyle = rgba(C.bone, .35 * reveal); c.lineWidth = 1;
+  for (let m = 0; m < 12; m++) {
+    const ph = m * TAU / 12 + rot;
+    c.beginPath();
+    let pen = false;
+    for (let k = 0; k <= 48; k++) {
+      const th = k / 48 * Math.PI;
+      const px = Math.sin(th) * Math.cos(ph), pz = Math.sin(th) * Math.sin(ph), py = -Math.cos(th);
+      if (pz < 0) { pen = false; continue; }
+      const X = cx + px * R, Y = cy + py * R;
+      pen ? c.lineTo(X, Y) : c.moveTo(X, Y); pen = true;
+    }
+    c.stroke();
+  }
+  // limb
+  c.strokeStyle = rgba(C.bone, .8 * reveal); c.lineWidth = 1.5;
+  c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.stroke();
+
+  // the orbit: one revolution per bar, tilted; hidden behind the sphere
+  const tilt = -.22, rx = 560, ry = 130;
+  const orbitAt = (s) => {
+    const a = TAU * (s - 8) / 2 - Math.PI / 2;
+    const ox = Math.cos(a) * rx, oy = Math.sin(a) * ry, oz = Math.sin(a);
+    return { x: cx + ox * Math.cos(tilt) - oy * Math.sin(tilt), y: cy + ox * Math.sin(tilt) + oy * Math.cos(tilt), z: oz };
+  };
+  const hidden = (q) => q.z < 0 && Math.hypot(q.x - cx, q.y - cy) < R;
+  // orbit path, faint
+  c.strokeStyle = rgba(C.graphite, .6); c.lineWidth = 1; c.setLineDash([4, 8]);
+  c.beginPath();
+  for (let k = 0; k <= 120; k++) { const q = orbitAt(8 + k / 60); if (hidden(q)) { c.stroke(); c.beginPath(); continue; } c.lineTo(q.x, q.y); }
+  c.stroke(); c.setLineDash([]);
+  // trail
+  both((x, glow) => {
+    x.lineCap = 'round';
+    for (let k = 0; k < 40; k++) {
+      const s0 = t - k * .015, s1 = t - (k + 1) * .015;
+      if (s1 < 8) break;
+      const a = orbitAt(s0), b = orbitAt(s1);
+      if (hidden(a) || hidden(b)) continue;
+      x.strokeStyle = rgba(C.signal, (1 - k / 40) * (glow ? .8 : 1));
+      x.lineWidth = (glow ? 5 : 2.5) * (1 - k / 40);
+      x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke();
+    }
+  });
+  const h = orbitAt(t);
+  if (!hidden(h)) {
+    sparkParticles(t, (tb) => (tb >= 8 && !hidden(orbitAt(tb)) ? orbitAt(tb) : null), { seed: 9, rate: 50, life: .35 });
+    sparkHead(h.x, h.y, t, .8 + .3 * h.z);
+  }
+
+  // words on the beats, serif italic
+  const words = [['everything', 1], ['moves', 1.5], ['on', 2], ['the', 2.25], ['beat.', 2.5]];
+  c.font = SERIF(92); c.textBaseline = 'alphabetic';
+  let wx = 96, wy = 300;
+  for (const [w, at] of words) {
+    const a = prog(lt, at, at + .3, ease.outExpo);
+    const ww = c.measureText(w + ' ').width;
+    if (wx + ww > 760) { wx = 96; wy += 96; }
+    if (a > 0) {
+      c.fillStyle = lt < at + .5 ? C.signal : C.bone;
+      c.globalAlpha = a;
+      c.fillText(w, wx, wy + (1 - a) * 24);
+      c.globalAlpha = 1;
+    }
+    wx += ww;
+  }
+  c.font = MONO(14); c.fillStyle = rgba(C.ash, .8);
+  c.fillText('1 revolution / bar · hatching from a rotating light', 96, 560);
+
+  hud(t, C.bone, '03', 'THE ORBIT');
+}
+
+// ---------------------------------------------------------------- plate 04: the count (12–16 s)
+function plate4(t) {
+  const lt = t - 12;
+  c.fillStyle = C.ink; c.fillRect(0, 0, W, H);
+  const N = 960 * prog(lt, 0, 2.2, ease.outExpo); // frames in one loop
+  const close = prog(lt, 2.5, 3.4, ease.inExpo); // everything collapses into the spark
+  const digits = 4, size = 220, cw = 160, x0 = W / 2 - digits * cw / 2, y0 = H / 2 + 40;
+
+  c.save();
+  c.translate(W / 2, H / 2); c.scale(1 - close, 1 - close); c.translate(-W / 2, -H / 2);
+  c.globalAlpha = 1 - close;
+  c.font = MONO(size, 500); c.textBaseline = 'alphabetic'; c.textAlign = 'center';
+  for (let i = 0; i < digits; i++) {
+    const p = Math.pow(10, digits - 1 - i);
+    const below = N % p;
+    const roll = clamp(below - (p - 1), 0, 1); // classic odometer carry
+    const v = Math.floor(N / p) % 10 + (p === 1 ? N % 1 : roll);
+    const cx = x0 + i * cw + cw / 2;
+    c.save();
+    c.beginPath(); c.rect(x0 + i * cw + 6, y0 - size * .95, cw - 12, size * 1.2); c.clip();
+    c.fillStyle = C.ink2; c.fillRect(x0 + i * cw + 6, y0 - size * .95, cw - 12, size * 1.2);
+    for (let d = -1; d <= 1; d++) {
+      const val = (Math.floor(v) + d + 10) % 10;
+      const off = (d - (v % 1)) * size;
+      c.fillStyle = rgba(C.bone, 1 - Math.abs(off) / size * .7);
+      c.fillText(String(val), cx, y0 + off);
+    }
+    c.restore();
+  }
+  // hairline frame + labels
+  c.strokeStyle = rgba(C.bone, .6); c.lineWidth = 1;
+  c.strokeRect(x0, y0 - size * .95, digits * cw, size * 1.2);
+  c.textAlign = 'left'; c.font = MONO(14); c.fillStyle = rgba(C.ash, .9);
+  c.fillText('FRAMES RENDERED THIS LOOP', x0, y0 - size * .95 - 18);
+  c.textAlign = 'right';
+  c.fillText(`${(N / 60).toFixed(2)} s · 60 fps · ${BPM} bpm · loops forever`, x0 + digits * cw, y0 + size * .25 + 32);
+  c.textAlign = 'left';
+  c.restore();
+  c.globalAlpha = 1;
+
+  // the spark returns to the centre and waits for the loop
+  const sp = prog(lt, 2.4, 3.5, ease.outCubic);
+  if (sp > 0) {
+    const fromX = x0 + digits * cw + 40;
+    const head = { x: lerp(fromX, W / 2, ease.inOutCubic(sp)), y: lerp(y0 - size * .95, H / 2, ease.inOutCubic(sp)) };
+    sparkParticles(t, (tb) => {
+      const s = prog(tb - 12, 2.4, 3.5, ease.outCubic);
+      return s > 0 ? { x: lerp(fromX, W / 2, ease.inOutCubic(s)), y: lerp(y0 - size * .95, H / 2, ease.inOutCubic(s)) } : null;
+    }, { seed: 11 });
+    sparkHead(head.x, head.y, t, 1 + .4 * pulse(lt, 3.5, .1));
+  }
+  // crop marks fly out on the last bar, they fly back in at the top of the loop
+  const out = prog(lt, 3.2, 4, ease.inExpo);
+  c.save(); c.globalAlpha = 1 - out; cropMarks(.6, C.bone); c.restore();
+  if (close < .9) hud(t, C.bone, '04', 'THE COUNT');
+}
+
+// ---------------------------------------------------------------- frame
+function applyView(x) {
+  const k = x === g ? .5 : 1;
+  x.setTransform(S * k, 0, 0, S * k, OX * k, OY * k);
+}
+
+function render(t) {
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = C.ink; c.fillRect(0, 0, cv.width, cv.height);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, glowCv.width, glowCv.height);
+  applyView(c); applyView(g);
+  c.save();
+  c.beginPath(); c.rect(0, 0, W, H); c.clip();
+
+  if (t < 4) plate1(t);
+  else if (t < 8) plate2(t);
+  else if (t < 12) plate3(t);
+  else plate4(t);
+  c.restore();
+
+  // bloom: the glow layer, blurred twice, added on top
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = 'lighter';
+  c.filter = `blur(${6 * S}px)`;
+  c.drawImage(glowCv, 0, 0, cv.width, cv.height);
+  c.filter = `blur(${28 * S}px)`; c.globalAlpha = .9;
+  c.drawImage(glowCv, 0, 0, cv.width, cv.height);
+  c.filter = 'none'; c.globalAlpha = 1;
+  c.globalCompositeOperation = 'source-over';
+
+  // vignette
+  const vg = c.createRadialGradient(cv.width / 2, cv.height / 2, cv.height * .3, cv.width / 2, cv.height / 2, cv.height * .95);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+  c.fillStyle = vg; c.fillRect(0, 0, cv.width, cv.height);
+
+  // grain, a new tile and offset each output frame
+  const fi = frameIdx(t);
+  c.globalCompositeOperation = 'overlay'; c.globalAlpha = .09;
+  c.setTransform(1, 0, 0, 1, (hash(fi, 7) * 256) | 0, (hash(fi, 8) * 256) | 0);
+  c.fillStyle = grainTiles[fi % 4]; c.fillRect(-256, -256, cv.width + 256, cv.height + 256);
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+}
+
+// ---------------------------------------------------------------- sound (optional, synthesized, on the same clock)
+let ac = null, acT0 = 0, nextEighth = 0, noiseBuf = null;
+function initAudio() {
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  acT0 = ac.currentTime - songTime;
+  nextEighth = Math.ceil(songTime / (BEAT / 2));
+}
+function noise(at, dur, type, freq, gain) {
+  const s = ac.createBufferSource(); s.buffer = noiseBuf;
+  const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const gn = ac.createGain(); gn.gain.setValueAtTime(gain, at); gn.gain.exponentialRampToValueAtTime(.001, at + dur);
+  s.connect(f).connect(gn).connect(ac.destination); s.start(at); s.stop(at + dur + .05);
+}
+function kick(at, gain = .9) {
+  const o = ac.createOscillator(), gn = ac.createGain();
+  o.frequency.setValueAtTime(150, at); o.frequency.exponentialRampToValueAtTime(42, at + .14);
+  gn.gain.setValueAtTime(gain, at); gn.gain.exponentialRampToValueAtTime(.001, at + .4);
+  o.connect(gn).connect(ac.destination); o.start(at); o.stop(at + .45);
+}
+function schedule() {
+  if (!ac || paused) return;
+  const horizon = ac.currentTime - acT0 + .2;
+  while (nextEighth * BEAT / 2 < horizon) {
+    const st = nextEighth * BEAT / 2, at = acT0 + st, lt = st % LOOP, e = Math.round(lt / (BEAT / 2)) % 32;
+    const beat = e % 2 === 0, bi = (e / 2) % 4;
+    noise(at, .04, 'highpass', 8000, beat ? .05 : .09);
+    if (beat && lt < 15) kick(at, lt >= 4 && lt < 7 ? 1 : .8);
+    if (beat && (bi === 1 || bi === 3) && !(lt >= 4 && lt < 7)) noise(at, .16, 'bandpass', 1800, .35);
+    if (e === 8 || e === 0) noise(at, 1.2, 'highpass', 4000, .12);
+    nextEighth++;
+  }
+}
+
+// ---------------------------------------------------------------- clock
+// ?t=5.2 freezes the loop at that time (for stills)
+const qT = parseFloat(new URLSearchParams(location.search).get('t'));
+let songTime = isNaN(qT) ? 0 : qT, last = performance.now(), paused = !isNaN(qT);
+function tick(now) {
+  if (ac) { if (!paused) songTime = ac.currentTime - acT0; }
+  else if (!paused) songTime += Math.min(.1, (now - last) / 1000);
+  last = now;
+  schedule();
+  render(((songTime % LOOP) + LOOP) % LOOP);
+  requestAnimationFrame(tick);
+}
+
+const hint = document.getElementById('hint');
+cv.addEventListener('click', () => {
+  if (!ac) { initAudio(); hint.style.opacity = 0; }
+  else if (ac.state === 'suspended' && !paused) ac.resume();
+});
+addEventListener('keydown', (e) => {
+  if (e.code !== 'Space') return;
+  e.preventDefault();
+  paused = !paused;
+  if (ac) paused ? ac.suspend() : (ac.resume(), nextEighth = Math.ceil((ac.currentTime - acT0) / (BEAT / 2)));
+});
+addEventListener('resize', resize);
+
+resize();
+Promise.all([
+  document.fonts.load(ARCH(900, 'normal', 100)),
+  document.fonts.load(MONO(14)), document.fonts.load(MONO(14, 500)),
+  document.fonts.load(SERIF(64)),
+]).catch(() => {}).finally(() => requestAnimationFrame(tick));
+</script>
+</body>
+</html>

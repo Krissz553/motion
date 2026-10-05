@@ -1,0 +1,22 @@
+# Data in Motion
+
+Code-rendered motion graphics for [@datamotionhq](https://www.instagram.com/datamotionhq/). Every frame is a pure function of time, so the live page in the browser and the exported MP4 are identical.
+
+- `index.html`: **NVIDIA, in motion**, a vertical 1080×1920 reel (27 s at 120 BPM). It has four acts: the title slam, the climb from 2000 to 2026, the payoff, and the Instagram search for @datamotionhq.
+- `reel.html`: Reel 01, a 16 s landscape loop (the curve, the slam, the orbit, the count).
+- `nvidia-datamotion.mp4`: the rendered reel, 1080×1920 at 60 fps with motion blur.
+- `data/nvda-monthly.json`: monthly split-adjusted NVIDIA closes, 2000-01 to 2026-10, traced from the source chart. The same numbers are inlined in `index.html`.
+- `fonts/`: Archivo (variable width and weight), IBM Plex Mono and Cormorant Garamond italic, self-hosted (SIL OFL).
+
+## Preview
+
+Open `index.html` through any static server (`python3 -m http.server 8765`). Controls: space pauses, ← and → seek, and a click restarts. `?t=18.2` freezes the reel on one frame.
+
+## Render the MP4
+
+```sh
+python3 -m http.server 8765 &
+node scripts/render.cjs --samples 4 --out nvidia-datamotion.mp4
+```
+
+The script needs playwright with a Chromium, plus ffmpeg with libx264. Each frame is the average of `--samples` sub-frames spread over half a frame's time, which gives the motion blur. `--from` and `--to` render only part of the reel.
