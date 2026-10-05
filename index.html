@@ -20,15 +20,21 @@
   aside { position: fixed; right: 20px; bottom: 16px; text-align: right; color: var(--graphite); letter-spacing: .06em; }
   aside a { color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--graphite); }
   aside a:hover { border-color: var(--signal); }
-  body.export aside { display: none; }
+  #sound {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+    padding: 14px 22px; border: 1px solid var(--signal); background: rgba(10,10,11,.85); color: var(--bone);
+    font: 500 14px/1 'IBM Plex Mono', monospace; letter-spacing: .2em; text-transform: uppercase; transition: opacity .4s;
+  }
+  body.export aside, body.export #sound { display: none; }
   body.export canvas { height: auto; width: 1080px; }
   @media (max-width: 700px) { aside { display: none; } }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="sound">tap for sound</div>
 <aside>
-  space pause · ← → seek · click restart<br>
+  tap: sound on / restart · space pause · ← → seek<br>
   <a href="nvidia-datamotion.mp4" download>download mp4</a> · <a href="reel.html">reel 01</a>
 </aside>
 <script>
@@ -879,20 +885,33 @@ window.fontsReady = Promise.all([
 
 // ================================================================ live playback
 if (!EXPORT) {
+  // The soundtrack is the clock while it plays (browsers only allow sound after a tap/click).
   const q = parseFloat(new URLSearchParams(location.search).get('t'));
-  let time = isNaN(q) ? 0 : q, paused = !isNaN(q), last = performance.now();
+  const probe = document.createElement('audio');
+  const audio = new Audio(probe.canPlayType('audio/mp4; codecs="mp4a.40.2"') ? 'audio/soundtrack.m4a' : 'audio/soundtrack.mp3');
+  audio.loop = true; audio.preload = 'auto';
+  let time = isNaN(q) ? 0 : q, paused = !isNaN(q), last = performance.now(), sound = false;
+  const hint = document.getElementById('sound');
   const tick = (now) => {
-    if (!paused) time = (time + Math.min(.1, (now - last) / 1000)) % DUR;
+    if (sound && !audio.paused) time = audio.currentTime % DUR;
+    else if (!paused) time = (time + Math.min(.1, (now - last) / 1000)) % DUR;
     last = now;
     window.renderFrame(time);
     requestAnimationFrame(tick);
   };
+  const seek = (t) => { time = t; if (sound) audio.currentTime = t; };
+  const setPaused = (p) => { paused = p; if (sound) p ? audio.pause() : audio.play(); };
   addEventListener('keydown', (e) => {
-    if (e.code === 'Space') { e.preventDefault(); paused = !paused; }
-    if (e.code === 'ArrowRight') time = Math.min(DUR - .01, time + (e.shiftKey ? 5 : 1));
-    if (e.code === 'ArrowLeft') time = Math.max(0, time - (e.shiftKey ? 5 : 1));
+    if (e.code === 'Space') { e.preventDefault(); setPaused(!paused); }
+    if (e.code === 'ArrowRight') seek(Math.min(DUR - .01, time + (e.shiftKey ? 5 : 1)));
+    if (e.code === 'ArrowLeft') seek(Math.max(0, time - (e.shiftKey ? 5 : 1)));
   });
-  cv.addEventListener('click', () => { time = 0; paused = false; });
+  // first tap: sound on from the top; later taps restart
+  addEventListener('pointerdown', () => {
+    sound = true; hint.style.opacity = 0;
+    audio.currentTime = 0; time = 0; paused = false;
+    audio.play().catch(() => { sound = false; });
+  });
   window.fontsReady.finally(() => requestAnimationFrame(tick));
 }
 </script>
