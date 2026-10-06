@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Lyric Tap Sync</title>
+<meta name="description" content="Tap along to a song to time its lyrics, line by line and word by word, then export the timings.">
+<style>
+  @font-face { font-family: 'Archivo'; font-weight: 100 900; font-stretch: 62% 125%; src: url(fonts/archivo-var.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 300 400; src: url(fonts/plexmono-400.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 500; src: url(fonts/plexmono-500.woff2) format('woff2'); }
+  :root { --bg: #0C1117; --panel: #141B23; --line: #24303C; --text: #F1F3F5; --dim: #8B96A1; --accent: #F5CF57; --hot: #FF6B6B; --ok: #5FD3B5; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 'IBM Plex Mono', ui-monospace, monospace; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 140px; }
+  h1 { font: 800 34px/1.1 Archivo, sans-serif; margin: 8px 0 4px; letter-spacing: -.01em; }
+  h2 { font: 700 13px/1 'IBM Plex Mono', monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin: 28px 0 10px; }
+  p.lead { color: var(--dim); margin: 0 0 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  textarea { width: 100%; min-height: 220px; background: #0A0E13; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font: 14px/1.6 'IBM Plex Mono', monospace; resize: vertical; }
+  input[type=file] { color: var(--dim); max-width: 100%; }
+  button { font: 600 14px 'IBM Plex Mono', monospace; color: var(--text); background: #1E2731; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+  button:hover { border-color: var(--dim); }
+  button.primary { background: var(--accent); color: #0C1117; border-color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: transparent; }
+  .seg button.on { background: var(--accent); color: #0C1117; }
+  #stage { text-align: center; padding: 26px 12px; }
+  #now { font: 800 clamp(26px, 6vw, 46px)/1.15 Archivo, sans-serif; min-height: 1.2em; }
+  #now .w { opacity: .35; } #now .w.done { opacity: 1; } #now .w.next { opacity: 1; color: var(--accent); text-decoration: underline; text-underline-offset: 6px; }
+  #nextLine { color: var(--dim); margin-top: 10px; min-height: 1.5em; }
+  #clock { font: 500 13px 'IBM Plex Mono'; color: var(--dim); margin-top: 14px; }
+  #tap { width: 100%; height: 120px; margin-top: 18px; font: 800 28px Archivo, sans-serif; letter-spacing: .08em; background: var(--hot); color: #0C1117; border: 0; border-radius: 16px; touch-action: manipulation; }
+  #tap:active { transform: scale(.98); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { border-top: 1px solid var(--line); padding: 7px 6px; vertical-align: middle; }
+  td.t { color: var(--accent); white-space: nowrap; width: 1%; }
+  td.n { white-space: nowrap; width: 1%; }
+  td.n button { padding: 4px 7px; font-size: 12px; }
+  tr.cur td { background: rgba(245,207,87,.08); }
+  .wordt { color: var(--ok); font-size: 11px; }
+  .hint { color: var(--dim); font-size: 13px; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; font-size: 12px; color: var(--text); }
+  .status { font-size: 13px; color: var(--ok); }
+  audio { width: 100%; margin-top: 12px; }
+  @media (max-width: 560px) { td.n button { padding: 3px 5px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lyric Tap Sync</h1>
+  <p class="lead">Time a song's lyrics by tapping along. Your audio stays on your device: nothing is uploaded.</p>
+
+  <h2>1 · Song and lyrics</h2>
+  <div class="card">
+    <div class="row"><input id="file" type="file" accept="audio/*"><span id="fname" class="hint"></span></div>
+    <audio id="audio" controls preload="auto"></audio>
+    <p class="hint" style="margin:14px 0 6px">Paste the lyrics, one sung line per line. Empty lines and [Section] tags are ignored.</p>
+    <textarea id="lyrics" placeholder="First line of the song&#10;Second line&#10;…"></textarea>
+  </div>
+
+  <h2>2 · Tap</h2>
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="seg" id="mode"><button data-m="line" class="on">Lines</button><button data-m="word">Words</button></div>
+      <div class="seg" id="rate"><button data-r="1" class="on">1×</button><button data-r=".85">0.85×</button><button data-r=".7">0.7×</button></div>
+    </div>
+    <div id="stage">
+      <div id="now">Load a song and paste the lyrics</div>
+      <div id="nextLine"></div>
+      <div id="clock">0:00.00</div>
+      <button id="tap" disabled>TAP</button>
+    </div>
+    <div class="row">
+      <button id="start" class="primary">▶ Start from the top</button>
+      <button id="undo">↶ Undo last tap</button>
+      <button id="resume">Resume 3 s before last tap</button>
+    </div>
+    <p class="hint" style="margin-top:12px">
+      <b>Lines:</b> tap the instant each line starts being sung. <b>Words:</b> tap the instant each word starts (do this after the lines are done; slower playback helps).
+      Keys: <kbd>Space</kbd> tap · <kbd>Backspace</kbd> undo · <kbd>R</kbd> resume before last tap · <kbd>P</kbd> play/pause.
+    </p>
+  </div>
+
+  <h2>3 · Review and nudge</h2>
+  <div class="card">
+    <div class="row" style="margin-bottom:10px">
+      <button id="preview">▶ Preview karaoke</button>
+      <span class="hint">Click a time to play from just before it; nudge by 50 ms.</span>
+    </div>
+    <table id="table"></table>
+  </div>
+
+  <h2>4 · Export</h2>
+  <div class="card">
+    <div class="row">
+      <button id="download" class="primary">Download timings (.json)</button>
+      <button id="copy">Copy to clipboard</button>
+      <span id="exStatus" class="status"></span>
+    </div>
+    <p class="hint" style="margin-top:10px">Send the .json back in the chat. Progress is saved in this browser, so you can close the page and continue later.</p>
+  </div>
+</main>
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const audio = $('#audio');
+let mode = 'line', lines = [], tapsL = [], tapsW = {}, wordCursor = { li: 0, wi: 0 }, previewing = false;
+const KEY = 'tapsync.v1';
+const fmt = (t) => t == null ? '—' : `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`;
+const parse = (txt) => txt.split('\n').map((s) => s.trim()).filter((s) => s && !/^\[.*\]$/.test(s));
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify({ lyrics: $('#lyrics').value, tapsL, tapsW, fname: $('#fname').textContent })); } catch {} }
+function load() {
+  try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d) return;
+    $('#lyrics').value = d.lyrics || ''; tapsL = d.tapsL || []; tapsW = d.tapsW || {}; if (d.fname) $('#fname').textContent = 'last used: ' + d.fname; } catch {}
+}
+function refreshLines() {
+  lines = parse($('#lyrics').value).map((text) => ({ text, words: text.split(/\s+/) }));
+  tapsL.length = Math.min(tapsL.length, lines.length);
+  render(); save();
+}
+
+$('#file').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  audio.src = URL.createObjectURL(f); $('#fname').textContent = f.name; $('#tap').disabled = false; save();
+});
+$('#lyrics').addEventListener('input', refreshLines);
+document.querySelectorAll('#mode button').forEach((b) => b.onclick = () => {
+  mode = b.dataset.m; document.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b));
+  if (mode === 'word') { const li = firstLineMissingWords(); wordCursor = { li, wi: 0 }; }
+  render();
+});
+document.querySelectorAll('#rate button').forEach((b) => b.onclick = () => {
+  audio.playbackRate = +b.dataset.r; document.querySelectorAll('#rate button').forEach((x) => x.classList.toggle('on', x === b));
+});
+function firstLineMissingWords() { for (let i = 0; i < lines.length; i++) if (!tapsW[i] || tapsW[i].length < lines[i].words.length) return i; return 0; }
+
+function tap() {
+  if (!audio.src || !lines.length) return;
+  const t = +audio.currentTime.toFixed(3);
+  if (mode === 'line') {
+    if (tapsL.length >= lines.length) return;
+    tapsL.push(t);
+  } else {
+    const { li } = wordCursor;
+    if (li >= lines.length) return;
+    (tapsW[li] = tapsW[li] || []).push(t);
+    wordCursor.wi = tapsW[li].length;
+    if (wordCursor.wi >= lines[li].words.length) wordCursor = { li: li + 1, wi: 0 };
+  }
+  flash(); render(); save();
+}
+function undo() {
+  if (mode === 'line') tapsL.pop();
+  else {
+    let { li } = wordCursor;
+    if ((!tapsW[li] || !tapsW[li].length) && li > 0) li--;
+    if (tapsW[li] && tapsW[li].length) tapsW[li].pop();
+    wordCursor = { li, wi: (tapsW[li] || []).length };
+  }
+  render(); save();
+}
+function lastTapTime() {
+  if (mode === 'line') return tapsL[tapsL.length - 1];
+  const w = tapsW[wordCursor.li] && tapsW[wordCursor.li].length ? tapsW[wordCursor.li] : tapsW[wordCursor.li - 1];
+  return w && w.length ? w[w.length - 1] : (tapsL[wordCursor.li] ?? 0);
+}
+function resume() { const t = lastTapTime(); audio.currentTime = Math.max(0, (t || 0) - 3); audio.play(); }
+function flash() { const b = $('#tap'); b.style.background = '#F5CF57'; setTimeout(() => (b.style.background = ''), 90); }
+
+$('#tap').addEventListener('pointerdown', (e) => { e.preventDefault(); tap(); });
+$('#start').onclick = () => {
+  if (!audio.src) return alert('Load the song first.');
+  if (mode === 'line') { if (tapsL.length && !confirm('Start over? This clears the line taps.')) return; tapsL = []; }
+  else { const li = wordCursor.li; audio.currentTime = Math.max(0, (tapsL[li] ?? 0) - 2); audio.play(); render(); return; }
+  audio.currentTime = 0; audio.play(); render(); save();
+};
+$('#undo').onclick = undo; $('#resume').onclick = resume;
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.code === 'Space') { e.preventDefault(); tap(); }
+  else if (e.code === 'Backspace') { e.preventDefault(); undo(); }
+  else if (e.code === 'KeyR') resume();
+  else if (e.code === 'KeyP') audio.paused ? audio.play() : audio.pause();
+});
+
+function curLineAt(t) { let i = -1; tapsL.forEach((s, k) => { if (t >= s) i = k; }); return i; }
+function render() {
+  // stage
+  const now = $('#now'), nx = $('#nextLine');
+  if (!lines.length) { now.textContent = 'Paste the lyrics above'; nx.textContent = ''; }
+  else if (previewing) {
+    const i = curLineAt(audio.currentTime);
+    if (i < 0) { now.textContent = '…'; nx.textContent = lines[0].text; }
+    else {
+      const wt = tapsW[i] || [];
+      now.innerHTML = lines[i].words.map((w, k) => `<span class="w ${wt[k] != null && audio.currentTime >= wt[k] ? 'done' : (wt.length ? '' : 'done')}">${esc(w)}</span>`).join(' ');
+      nx.textContent = lines[i + 1] ? lines[i + 1].text : '';
+    }
+  } else if (mode === 'line') {
+    const i = tapsL.length;
+    now.textContent = i < lines.length ? lines[i].text : 'All lines tapped ✓';
+    nx.textContent = i < lines.length ? `line ${i + 1} of ${lines.length}` + (lines[i + 1] ? ' · next: ' + lines[i + 1].text : '') : 'Review below, or switch to Words for word timing';
+  } else {
+    const { li, wi } = wordCursor;
+    if (li >= lines.length) { now.textContent = 'All words tapped ✓'; nx.textContent = ''; }
+    else {
+      now.innerHTML = lines[li].words.map((w, k) => `<span class="w ${k < wi ? 'done' : k === wi ? 'next' : ''}">${esc(w)}</span>`).join(' ');
+      nx.textContent = `line ${li + 1} of ${lines.length}` + (lines[li + 1] ? ' · next: ' + lines[li + 1].text : '');
+    }
+  }
+  // table
+  const tb = $('#table'), cur = curLineAt(audio.currentTime);
+  tb.innerHTML = lines.map((l, i) => `<tr class="${i === cur ? 'cur' : ''}"><td class="t"><a href="#" data-play="${i}" style="color:inherit">${fmt(tapsL[i])}</a></td>
+    <td>${esc(l.text)}${tapsW[i] && tapsW[i].length ? `<div class="wordt">${tapsW[i].length}/${l.words.length} words timed</div>` : ''}</td>
+    <td class="n"><button data-n="${i}" data-d="-0.05">−50</button> <button data-n="${i}" data-d="0.05">+50</button></td></tr>`).join('');
+}
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+$('#table').addEventListener('click', (e) => {
+  const p = e.target.closest('[data-play]'), n = e.target.closest('[data-n]');
+  if (p) { e.preventDefault(); const i = +p.dataset.play; if (tapsL[i] != null) { audio.currentTime = Math.max(0, tapsL[i] - 1.5); audio.play(); } }
+  if (n) { const i = +n.dataset.n, d = +n.dataset.d; if (tapsL[i] != null) { tapsL[i] = +(tapsL[i] + d).toFixed(3); if (tapsW[i]) tapsW[i] = tapsW[i].map((x) => +(x + d).toFixed(3)); render(); save(); } }
+});
+$('#preview').onclick = () => { previewing = !previewing; $('#preview').textContent = previewing ? '■ Stop preview' : '▶ Preview karaoke'; if (previewing) { audio.currentTime = Math.max(0, (tapsL[0] || 0) - 2); audio.play(); } render(); };
+setInterval(() => { $('#clock').textContent = fmt(audio.currentTime) + (audio.playbackRate !== 1 ? `  ·  ${audio.playbackRate}×` : ''); if (previewing || !audio.paused) render(); }, 50);
+
+function exportData() {
+  return {
+    tool: 'lyric-tap-sync', song: $('#fname').textContent.replace(/^last used: /, ''), created: new Date().toISOString(),
+    lines: lines.map((l, i) => ({ text: l.text, start: tapsL[i] ?? null, end: tapsL[i + 1] ?? null, words: l.words.map((w, k) => ({ w, start: (tapsW[i] || [])[k] ?? null })) })),
+  };
+}
+$('#download').onclick = () => {
+  const blob = new Blob([JSON.stringify(exportData(), null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'lyric-timings.json'; a.click();
+  $('#exStatus').textContent = 'Downloaded ✓';
+};
+$('#copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(exportData())); $('#exStatus').textContent = 'Copied ✓'; } catch { $('#exStatus').textContent = 'Copy failed: use Download'; } };
+load(); refreshLines();
+</script>
+</body>
+</html>
