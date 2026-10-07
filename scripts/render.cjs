@@ -1,6 +1,6 @@
 // Offline export: drives the page headless, renders every frame (with motion blur) and encodes it with ffmpeg.
 //   python3 -m http.server 8765 &   (from the repo root, so the fonts load over http)
-//   node scripts/render.cjs [--samples 4] [--workers 3] [--w 1080 --h 1920] [--audio audio/soundtrack.m4a] [--out nvidia-datamotion.mp4] [--from 0] [--to 30]
+//   node scripts/render.cjs [--samples 4] [--workers 3] [--fps 60] [--w 1080 --h 1920] [--audio audio/soundtrack.m4a] [--out nvidia-datamotion.mp4] [--from 0] [--to 30]
 // Needs playwright (with a Chromium) and ffmpeg with libx264. Each worker renders a contiguous slice of
 // frames to its own segment; the segments are joined without re-encoding and the audio is muxed in.
 const { spawn, execFileSync } = require('child_process');
@@ -13,7 +13,7 @@ try { pw = require('playwright'); } catch { pw = require(require('child_process'
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const samples = +arg('samples', 4), workers = +arg('workers', 3), out = arg('out', 'nvidia-datamotion.mp4');
 const audio = arg('audio', 'audio/soundtrack.m4a');
-const url = arg('url', 'http://localhost:8765/index.html?export'), fps = 60;
+const url = arg('url', 'http://localhost:8765/index.html?export'), fps = +arg('fps', 60);
 const VW = +arg('w', 1080), VH = +arg('h', 1920);
 
 async function openPage(browser) {
